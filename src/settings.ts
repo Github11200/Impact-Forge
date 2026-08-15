@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
-import HelloWorldPlugin from './main';
+import NotesOrganizerPlugin from './main';
 
 export interface MyPluginSettings {
   mySetting: string;
@@ -10,9 +10,9 @@ export const DEFAULT_SETTINGS: MyPluginSettings = {
 };
 
 export class SampleSettingTab extends PluginSettingTab {
-  plugin: HelloWorldPlugin;
+  plugin: NotesOrganizerPlugin;
 
-  constructor(app: App, plugin: HelloWorldPlugin) {
+  constructor(app: App, plugin: NotesOrganizerPlugin) {
     super(app, plugin);
     this.plugin = plugin;
   }

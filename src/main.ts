@@ -1,84 +1,50 @@
 import {
   Editor,
   MarkdownView,
-  MarkdownFileInfo,
+  type MarkdownFileInfo,
   Modal,
   Notice,
   Plugin,
+  App,
 } from 'obsidian';
 import {
   DEFAULT_SETTINGS,
-  MyPluginSettings,
+  type MyPluginSettings,
   SampleSettingTab,
 } from './settings';
 
+import { ItemView, WorkspaceLeaf } from 'obsidian';
+
+// Import the Counter Svelte component and the `mount` and `unmount` methods.
+import Counter from './components/OrganizeButton.svelte';
+import { mount, unmount } from 'svelte';
+import OrganizationWorkflow from './workflow';
+import VectraClass from './db';
+
 // Remember to rename these classes and interfaces!
 
-export default class HelloWorldPlugin extends Plugin {
+export default class NotesOrganizerPlugin extends Plugin {
   settings!: MyPluginSettings;
 
   async onload() {
     await this.loadSettings();
 
-    // This creates an icon in the left ribbon.
-    this.addRibbonIcon('dice', 'Sample', (_evt: MouseEvent) => {
-      // Called when the user clicks the icon.
-      new Notice('This is a notice!');
+    // Register the view
+    this.registerView(
+      VIEW_TYPE_EXAMPLE,
+      (leaf) => new PluginView(leaf)
+    );
+
+    this.addRibbonIcon('dice', 'Activate view', () => {
+      this.activateView();
     });
 
     // This adds a status bar item to the bottom of the app. Does not work on mobile apps.
     const statusBarItemEl = this.addStatusBarItem();
     statusBarItemEl.setText('Status bar text');
 
-    // This adds a simple command that can be triggered anywhere
-    this.addCommand({
-      id: 'open-modal-simple',
-      name: 'Open modal (simple)',
-      callback: () => {
-        new SampleModal(this.app).open();
-      },
-    });
-    // This adds an editor command that can perform some operation on the current editor instance
-    this.addCommand({
-      id: 'replace-selected',
-      name: 'Replace selected content',
-      editorCallback: (
-        editor: Editor,
-        _ctx: MarkdownView | MarkdownFileInfo,
-      ) => {
-        editor.replaceSelection('Sample editor command');
-      },
-    });
-    // This adds a complex command that can check whether the current state of the app allows execution of the command
-    this.addCommand({
-      id: 'open-modal-complex',
-      name: 'Open modal (complex)',
-      checkCallback: (checking: boolean) => {
-        // Conditions to check
-        const markdownView =
-          this.app.workspace.getActiveViewOfType(MarkdownView);
-        if (markdownView) {
-          // If checking is true, we're simply "checking" if the command can be run.
-          // If checking is false, then we want to actually perform the operation.
-          if (!checking) {
-            new SampleModal(this.app).open();
-          }
-
-          // This command will only show up in Command Palette when the check function returns true
-          return true;
-        }
-        return false;
-      },
-    });
-
     // This adds a settings tab so the user can configure various aspects of the plugin
     this.addSettingTab(new SampleSettingTab(this.app, this));
-
-    // If the plugin hooks up any global DOM events (on parts of the app that doesn't belong to this plugin)
-    // Using this function will automatically remove the event listener when this plugin is disabled.
-    this.registerDomEvent(activeDocument, 'click', (_evt: MouseEvent) => {
-      new Notice('Click');
-    });
 
     // When registering intervals, this function will automatically clear the interval when the plugin is disabled.
     this.registerInterval(
@@ -99,6 +65,29 @@ export default class HelloWorldPlugin extends Plugin {
   async saveSettings() {
     await this.saveData(this.settings);
   }
+
+  async activateView() {
+    const { workspace } = this.app;
+
+    let leaf: WorkspaceLeaf | null = null;
+    const leaves = workspace.getLeavesOfType(VIEW_TYPE_EXAMPLE);
+
+    if (leaves.length > 0) {
+      // A leaf with our view already exists, use that
+      // @ts-ignore
+      leaf = leaves[0];
+    } else {
+      // Our view could not be found in the workspace, create a new leaf
+      // in the right sidebar for it
+      leaf = workspace.getRightLeaf(false);
+      // @ts-ignore
+      await leaf.setViewState({ type: VIEW_TYPE_EXAMPLE, active: true });
+    }
+
+    // "Reveal" the leaf in case it is in a collapsed sidebar
+    // @ts-ignore
+    workspace.revealLeaf(leaf);
+  }
 }
 
 class SampleModal extends Modal {
@@ -110,5 +99,60 @@ class SampleModal extends Modal {
   onClose() {
     const { contentEl } = this;
     contentEl.empty();
+  }
+}
+
+
+export const VIEW_TYPE_EXAMPLE = 'example-view';
+
+export class PluginView extends ItemView {
+  component: Record<string, any> | undefined;
+
+  constructor(leaf: WorkspaceLeaf) {
+    super(leaf);
+  }
+
+  getViewType() {
+    return VIEW_TYPE_EXAMPLE;
+  }
+
+  getDisplayText() {
+    return 'Plugin view';
+  }
+
+  organizeButtonCallback = async () => {
+    const activeFile = this.app.workspace.getActiveFile();
+    if (!activeFile) {
+      new Notice('No active file selected.');
+      return;
+    }
+
+    const content = await this.app.vault.read(activeFile);
+
+    // const organizationWorkflow = new OrganizationWorkflow(content)
+    // organizationWorkflow.run()
+
+    const vectra = new VectraClass()
+    await vectra.initializeDatabase()
+    console.log("initialized")
+    // await vectra.addDocument(content, "Title")
+
+    // const res = await vectra.queryNotes(content)
+    // console.log(res)
+  };
+
+  async onOpen() {
+    this.component = mount(Counter, {
+      target: this.contentEl,
+      props: {
+        organizeButtonCallback: this.organizeButtonCallback,
+      },
+    });
+  }
+
+  async onClose() {
+    if (this.component) {
+      unmount(this.component);
+    }
   }
 }
