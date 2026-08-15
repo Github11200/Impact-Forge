@@ -2,7 +2,7 @@ import type z from "zod";
 import type { NoteType } from "./types"
 import { noteTypeClassifierAgent } from "./agents/noteTypeClassifierAgent";
 import { Notice } from "obsidian";
-import VectraClass from "./db";
+import VectorDB from "./db";
 import { noteTitleAgent } from "./agents/titleAgent";
 
 export default class OrganizationWorkflow {
@@ -75,7 +75,7 @@ export default class OrganizationWorkflow {
     }
 
     // GET THE MOST RELAVENT NOTES TO THIS ONE
-    const vectra = new VectraClass()
+    const vectra = new VectorDB()
     await vectra.initializeDatabase()
     const queryResult = await vectra.queryNotes(this.noteContent)
   }

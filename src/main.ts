@@ -19,20 +19,44 @@ import { ItemView, WorkspaceLeaf } from 'obsidian';
 import Counter from './components/OrganizeButton.svelte';
 import { mount, unmount } from 'svelte';
 import OrganizationWorkflow from './workflow';
-import VectraClass from './db';
+import VectorDB from './db';
 
 // Remember to rename these classes and interfaces!
 
 export default class NotesOrganizerPlugin extends Plugin {
   settings!: MyPluginSettings;
+  vectorDB = new VectorDB()
+
+  // Load the data from the JSON file into the vector database to be queried
+  async loadVectorDatabase() {
+    await this.vectorDB.initializeDatabase();
+
+    const data = await this.loadData();
+
+    if (data && data.vectorStoreData) {
+      await this.vectorDB.loadFromJSON(data.vectorStoreData);
+    }
+  }
+
+  // Save the data from the vector database to a JSON file so it persists
+  async saveVectorDatabase() {
+    const jsonString = this.vectorDB.exportToJSON();
+
+    // 2. Fetch existing settings/data and merge vector store data into it
+    const data = (await this.loadData()) || {};
+    data.vectorStoreData = jsonString;
+
+    await this.saveData(data);
+  }
 
   async onload() {
     await this.loadSettings();
+    await this.loadVectorDatabase();
 
     // Register the view
     this.registerView(
       VIEW_TYPE_EXAMPLE,
-      (leaf) => new PluginView(leaf)
+      (leaf) => new PluginView(leaf, this.organizeButtonCallback)
     );
 
     this.addRibbonIcon('dice', 'Activate view', () => {
@@ -50,6 +74,43 @@ export default class NotesOrganizerPlugin extends Plugin {
     this.registerInterval(
       window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000),
     );
+  }
+
+  organizeButtonCallback = async () => {
+    const activeFile = this.app.workspace.getActiveFile();
+    if (!activeFile) {
+      new Notice('No active file selected.');
+      return;
+    }
+
+    const content = await this.app.vault.read(activeFile);
+    const title = activeFile.basename;
+
+    new Notice(`Processing "${title}"...`);
+
+    // 1. Add current file content to persistent vector DB instance
+    await this.vectorDB.addDocument(content, title);
+
+    // 2. Persist updated vector store to JSON file
+    await this.saveVectorDatabase();
+    new Notice(`Saved "${title}" to Vector DB!`);
+
+    // 3. Test Query 1: Query using the exact content of the current file
+    console.log(`=== TEST 1: Exact Match Query for "${title}" ===`);
+    const exactRes = await this.vectorDB.queryNotes(content);
+    console.log('Results:', exactRes);
+
+    // 4. Test Query 2: Query using a semantic prompt (not identical words)
+    const testSemanticQuery = "What are the rules or key concepts discussed here?";
+    console.log(`=== TEST 2: Semantic Query ("${testSemanticQuery}") ===`);
+    const semanticRes = await this.vectorDB.queryNotes(testSemanticQuery);
+    console.log('Results:', semanticRes);
+
+    // Notice output
+    if (semanticRes.length > 0) {
+      const topMatch = semanticRes[0];
+      new Notice(`Top Match: ${topMatch.metadata.name} (Score: ${topMatch.score.toFixed(3)})`);
+    }
   }
 
   onunload() { }
@@ -107,9 +168,11 @@ export const VIEW_TYPE_EXAMPLE = 'example-view';
 
 export class PluginView extends ItemView {
   component: Record<string, any> | undefined;
+  organizeButtonCallback;
 
-  constructor(leaf: WorkspaceLeaf) {
+  constructor(leaf: WorkspaceLeaf, organizeButtonCallback: any) {
     super(leaf);
+    this.organizeButtonCallback = organizeButtonCallback
   }
 
   getViewType() {
@@ -119,23 +182,6 @@ export class PluginView extends ItemView {
   getDisplayText() {
     return 'Plugin view';
   }
-
-  organizeButtonCallback = async () => {
-    const activeFile = this.app.workspace.getActiveFile();
-    if (!activeFile) {
-      new Notice('No active file selected.');
-      return;
-    }
-
-    const content = await this.app.vault.read(activeFile);
-
-    // const organizationWorkflow = new OrganizationWorkflow(content)
-    // organizationWorkflow.run()
-
-    const vectra = new VectraClass()
-    await vectra.initializeDatabase()
-    await vectra.addDocument(content, "Title")
-  };
 
   async onOpen() {
     this.component = mount(Counter, {
