@@ -118,9 +118,16 @@ export default class NotesOrganizerPlugin extends Plugin {
     }
 
     const content = await this.app.vault.read(activeFile);
-    const title = activeFile.basename;
 
     const workflow = new OrganizationWorkflow(this.app, activeFile, content, this.vectorDB);
+
+    // await this.vectorDB.addDocument(activeFile, content)
+    // this.saveVectorDatabase()
+
+    // console.log("added document")
+    // workflow.getTagNames(await this.vectorDB.queryNotes("Some note"))
+
+    workflow.updateNoteReferences(["one", "two"])
   }
 }
 

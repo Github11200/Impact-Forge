@@ -1,4 +1,4 @@
-import { Notice } from "obsidian";
+import { Notice, TFile } from "obsidian";
 import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
 import { OllamaEmbeddings } from "@langchain/ollama";
 import { Document } from "langchain";
@@ -68,14 +68,19 @@ export default class VectorDB {
     return queryResult
   }
 
-  async addDocument(content: string, name: string) {
+  async addDocument(file: TFile, content: string) {
     const document = new Document({
       pageContent: content,
       metadata: {
-        name: name,
+        path: file.path,
+        title: file.basename,
       }
     })
 
     await this.vectorStore?.addDocuments([document])
+  }
+
+  async updateDocument() {
+    // TODO: Handle updates when the text or title updates
   }
 }

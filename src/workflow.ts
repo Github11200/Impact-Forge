@@ -4,6 +4,8 @@ import { noteTypeClassifierAgent } from "./agents/noteTypeClassifierAgent";
 import { App, Notice, TFile } from "obsidian";
 import VectorDB from "./db";
 import { noteTitleAgent } from "./agents/titleAgent";
+import { tagsAgent } from "./agents/tagsAgents";
+import { referencesAgent } from "./agents/referencesAgent";
 
 export default class OrganizationWorkflow {
   app: App
@@ -63,14 +65,6 @@ export default class OrganizationWorkflow {
     return noteTitleAgentResult.messages[0]?.content as string
   }
 
-  async getTagName(relevantNotes: QueryResult) {
-    // TODO: implement
-  }
-
-  async getReferences(relevantNotes: QueryResult) {
-    // TODO: Implement
-  }
-
   async updateFileTitle(newTitle: string) {
     // Maintain the existing directory path
     const currentFolder = this.file.parent ? this.file.parent.path : "";
@@ -92,6 +86,149 @@ export default class OrganizationWorkflow {
 
   }
 
+  getTagNamesFromNotes(notes: QueryResult) {
+    // Store the tags in a set to avoid duplicates
+    const candidateTags = new Set<string>()
+
+    for (const note of notes) {
+      const filePath = note.metadata.path;
+      const file = this.app.vault.getAbstractFileByPath(filePath);
+
+      if (file instanceof TFile) {
+        // Pull internal links directly from Obsidian's internal cache
+        const cache = this.app.metadataCache.getFileCache(file);
+        const links = cache?.links || [];
+
+        links.forEach(link => candidateTags.add(link.link));
+      }
+    }
+
+    return candidateTags
+  }
+
+  // Update the text file and add the backlinks in
+  async updateNoteTags(tags: string[]) {
+    // Format the tag strings into Obsidian backlinks
+    // ["ai", "philosophy"] -> "[[ai]] [[philosophy]]"
+    const formattedTags = tags.map(tag => `[[${tag}]]`).join(" ");
+
+    // Matches "Tags:" along with any trailing spaces/tabs on that same line
+    const tagsHeaderRegex = /^Tags:[ \t]*/im;
+
+    let updatedContent: string;
+
+    if (tagsHeaderRegex.test(this.noteContent)) {
+      // Replaces just "Tags: " on that line with "Tags: [[tag1]] [[tag2]]"
+      updatedContent = this.noteContent.replace(
+        tagsHeaderRegex,
+        `Tags: ${formattedTags}`
+      );
+    } else {
+      // Fallback if "Tags:" heading doesn't exist
+      updatedContent = `Tags: ${formattedTags}\n\n${this.noteContent}`;
+    }
+
+    try {
+      await this.app.vault.modify(this.file, updatedContent);
+    } catch (error) {
+      console.error("Failed to update tags in note:", error);
+      new Notice("Error updating note tags");
+    }
+  }
+
+  async updateNoteReferences(references: string[]) {
+    const formattedReferences = references.map(ref => `- [[${ref}]]`).join("\n");
+
+    // Matches "# References" heading along with anything below that line (to preserve that content)
+    const referencesHeadingRegex = /^# References[ \t]*/im;
+
+    let updatedContent: string;
+
+    if (referencesHeadingRegex.test(this.noteContent)) {
+      // Inserts the backlinks on a new line directly below "# References"
+      updatedContent = this.noteContent.replace(
+        referencesHeadingRegex,
+        `# References\n${formattedReferences}`
+      );
+    } else {
+      // Fallback: If "# References" heading isn't present, append it to the end of the note
+      updatedContent = `${this.noteContent.trimEnd()}\n\n# References\n${formattedReferences}`;
+    }
+
+    try {
+      await this.app.vault.modify(this.file, updatedContent);
+    } catch (error) {
+      console.error("Failed to update references in note:", error);
+      new Notice("Error updating note references");
+    }
+  }
+
+  // As the an agent to generate tag names for this note
+  async getTagNames(relevantNotes: QueryResult): Promise<string[]> {
+    const candidateTags = this.getTagNamesFromNotes(relevantNotes)
+    console.log(candidateTags)
+    const tagsAgentResult = await tagsAgent.invoke({
+      messages: [
+        {
+          role: "human", content: `Analyze the following note and select 1-3 tags.
+
+          Note Content:
+          """
+          ${this.noteContent}
+          """
+
+          Existing Candidate Tags from Similar Notes:
+          ${Array.from(candidateTags).map(tag => `- ${tag}`).join('\n')}
+
+          Select the most relevant tags from the candidates above, or create a new one only if necessary.` }
+      ]
+    })
+
+    try {
+      const tags = JSON.parse(tagsAgentResult.messages[1]?.content as string).tags
+      return tags;
+    } catch {
+      new Notice("Could not extract the tags")
+      return []
+    }
+  }
+
+  async getReferences(relevantNotes: QueryResult): Promise<string[]> {
+    const candidateListFormatted = relevantNotes.map((doc, idx) => {
+      const title = doc.metadata?.title
+
+      // Use the first 500 characters as a preview snippet
+      const snippet = doc.text ? doc.text.slice(0, 500).replace(/\s+/g, ' ') : "No preview available";
+      return `### Title: "${title}"\nPreview: ${snippet}...`;
+    }).join("\n\n");
+
+    const referencesAgentResult = await referencesAgent.invoke({
+      messages: [
+        {
+          role: "human", content: `Analyze the following target note and determine which candidate notes from the list should be linked as Zettelkasten references.
+
+          Target Note Content:
+          """
+          ${this.noteContent}
+          """
+
+          Candidate Notes from Vault:
+          ${candidateListFormatted}
+
+          Evaluate each candidate. Return ONLY the exact titles of the notes that have a strong conceptual link to the Target Note.`
+        }
+      ]
+    })
+
+    try {
+      const references = JSON.parse(referencesAgentResult.messages[1]?.content as string).references
+      return references;
+    } catch {
+      new Notice("Could not get the references")
+      return []
+    }
+  }
+
   async run() {
     // GENERATE THE NOTE TITLE
     const newTitle = await this.getTitle()
@@ -99,7 +236,6 @@ export default class OrganizationWorkflow {
       new Notice("Error generating the title for the document")
       return
     }
-    this.updateFileTitle(newTitle)
 
     // GET THE NOTE TYPE
     const noteType = await this.classifyNote()
@@ -112,9 +248,13 @@ export default class OrganizationWorkflow {
     const queryResult = await this.vectorDB.queryNotes(this.noteContent)
 
     // DECIDE THE TAG NAME BASED ON THE RELEVANT NOTES
-    await this.getTagName(queryResult)
+    const tagNames = await this.getTagNames(queryResult)
+    await this.updateNoteTags(tagNames)
 
     // DECIDE WHAT OTHER NOTES TO CONNECT TO
-    await this.getReferences(queryResult)
+    const references = await this.getReferences(queryResult)
+    await this.updateNoteReferences(references)
+
+    this.updateFileTitle(newTitle)
   }
 }
