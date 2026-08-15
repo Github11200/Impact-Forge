@@ -15,7 +15,7 @@ import {
 import { ItemView, WorkspaceLeaf } from 'obsidian';
 
 // Import the Counter Svelte component and the `mount` and `unmount` methods.
-import Counter from './components/OrganizeButton.svelte';
+import Counter from './components/Sidebar.svelte';
 import { mount, unmount } from 'svelte';
 import OrganizationWorkflow from './workflow';
 import VectorDB from './vectorDB';
@@ -92,6 +92,10 @@ export default class NotesOrganizerPlugin extends Plugin {
       if (!this.isWorkflowRunning)
         this.fileUpdate(file, this.vectorDB, file.path)
     })
+    this.app.vault.on("delete", (file) => {
+      if (file instanceof TFile)
+        this.graphDB.removeNote(file)
+    })
 
     // If the links in a file are changed then update the graph
     this.app.metadataCache.on("changed", (file, _, cache) => {
@@ -102,7 +106,7 @@ export default class NotesOrganizerPlugin extends Plugin {
     // Register the view
     this.registerView(
       VIEW_TYPE_EXAMPLE,
-      (leaf) => new PluginView(leaf, this.organizeButtonCallback)
+      (leaf) => new PluginView(leaf, this.organizeButtonCallback, this.questionButtonCallback)
     );
 
     this.addRibbonIcon('dice', 'Activate view', () => {
@@ -159,6 +163,10 @@ export default class NotesOrganizerPlugin extends Plugin {
     workspace.revealLeaf(leaf);
   }
 
+  questionButtonCallback = async () => {
+
+  }
+
   organizeButtonCallback = async () => {
     this.isWorkflowRunning = true
 
@@ -206,10 +214,12 @@ export const VIEW_TYPE_EXAMPLE = 'example-view';
 export class PluginView extends ItemView {
   component: Record<string, any> | undefined;
   organizeButtonCallback;
+  questionButtonCallback;
 
-  constructor(leaf: WorkspaceLeaf, organizeButtonCallback: any) {
+  constructor(leaf: WorkspaceLeaf, organizeButtonCallback: any, questionButtonCallback: any) {
     super(leaf);
     this.organizeButtonCallback = organizeButtonCallback
+    this.questionButtonCallback = questionButtonCallback
   }
 
   getViewType() {
@@ -225,6 +235,7 @@ export class PluginView extends ItemView {
       target: this.contentEl,
       props: {
         organizeButtonCallback: this.organizeButtonCallback,
+        questionButtonCallback: this.questionButtonCallback
       },
     });
   }

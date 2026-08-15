@@ -7,7 +7,7 @@ export default class NotesGraph {
 
   constructor(app: App) {
     this.app = app
-    this.graph = new Graph()
+    this.graph = new Graph({ multi: false })
   }
 
   addNote(file: TFile) {
@@ -57,6 +57,33 @@ export default class NotesGraph {
       const secondFile = this.app.vault.getAbstractFileByPath(link)
       if (secondFile !== null && secondFile instanceof TFile)
         this.connectNotes(file, secondFile)
+    }
+  }
+
+  // This is a helper function only meant to be used once to populate everything
+  populateGraph() {
+    // Add all Markdown files as nodes
+    const files = this.app.vault.getMarkdownFiles();
+    for (const file of files)
+      this.addNote(file);
+
+    // Get all the resolved links
+    const resolvedLinks = this.app.metadataCache.resolvedLinks;
+
+    // Go through all of the target paths from the source and add their links
+    for (const [sourcePath, targets] of Object.entries(resolvedLinks)) {
+      const sourceFile = this.app.vault.getAbstractFileByPath(sourcePath);
+
+      if (sourceFile instanceof TFile) {
+        for (const targetPath of Object.keys(targets)) {
+          // Resolve target file
+          const targetFile = this.app.vault.getAbstractFileByPath(targetPath);
+
+          if (targetFile instanceof TFile) {
+            this.connectNotes(sourceFile, targetFile);
+          }
+        }
+      }
     }
   }
 }
