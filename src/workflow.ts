@@ -2,26 +2,22 @@ import type z from "zod";
 import type { NoteType, NoteTypes, QueryResult } from "./types"
 import { noteTypeClassifierAgent } from "./agents/noteTypeClassifierAgent";
 import { App, Notice, TFile } from "obsidian";
-import VectorDB from "./db";
+import VectorDB from "./vectorDB";
 import { noteTitleAgent } from "./agents/titleAgent";
 import { tagsAgent } from "./agents/tagsAgents";
 import { referencesAgent } from "./agents/referencesAgent";
-import type Graph from "graphology";
-import type NotesGraph from "./graph";
 
 export default class OrganizationWorkflow {
   app: App
   file: TFile
   noteContent: string
   vectorDB: VectorDB
-  graphDB: NotesGraph
 
-  constructor(app: App, file: TFile, fileContent: string, vectorDB: VectorDB, graphDB: NotesGraph) {
+  constructor(app: App, file: TFile, fileContent: string, vectorDB: VectorDB) {
     this.app = app
     this.file = file
     this.noteContent = fileContent
     this.vectorDB = vectorDB
-    this.graphDB = graphDB
   }
 
   // Figure out whether the note is source material, a rough note, or a polished note
@@ -339,8 +335,6 @@ Instructions:
     }
     await this.moveFileToFolder(noteType.noteType)
     new Notice("Classified the note")
-
-
 
     return this.file
   }

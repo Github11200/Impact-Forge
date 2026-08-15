@@ -18,15 +18,15 @@ import { ItemView, WorkspaceLeaf } from 'obsidian';
 import Counter from './components/OrganizeButton.svelte';
 import { mount, unmount } from 'svelte';
 import OrganizationWorkflow from './workflow';
-import VectorDB from './db';
-import NotesGraph from './graph';
+import VectorDB from './vectorDB';
+import NotesGraph from './graphDB';
 
 // Remember to rename these classes and interfaces!
 
 export default class NotesOrganizerPlugin extends Plugin {
   settings!: MyPluginSettings;
   vectorDB = new VectorDB()
-  graphDB = new NotesGraph()
+  graphDB = new NotesGraph(this.app)
   isWorkflowRunning: boolean = false
 
   // Load the data from the JSON file into the vector database to be queried
@@ -91,6 +91,12 @@ export default class NotesOrganizerPlugin extends Plugin {
     this.app.vault.on("modify", (file) => {
       if (!this.isWorkflowRunning)
         this.fileUpdate(file, this.vectorDB, file.path)
+    })
+
+    // If the links in a file are changed then update the graph
+    this.app.metadataCache.on("changed", (file, _, cache) => {
+      this.graphDB.updateGraph(file, cache)
+      this.saveGraphDatabase()
     })
 
     // Register the view
@@ -164,11 +170,13 @@ export default class NotesOrganizerPlugin extends Plugin {
 
     const content = await this.app.vault.read(activeFile);
 
-    const workflow = new OrganizationWorkflow(this.app, activeFile, content, this.vectorDB, this.graphDB);
+    const workflow = new OrganizationWorkflow(this.app, activeFile, content, this.vectorDB);
     const updatedFile = await workflow.run()
 
-    if (updatedFile === undefined)
-      new Notice("Error organizing the file")
+    if (updatedFile === undefined) {
+      new Notice("Error organizing the file, aborting...")
+      return
+    }
     else {
       await this.vectorDB.addDocument(updatedFile, content)
       new Notice("Added document to the vector database")
