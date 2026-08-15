@@ -4,7 +4,7 @@ import { OllamaEmbeddings } from "@langchain/ollama";
 import { Document } from "langchain";
 import type { QueryResult } from "./types";
 
-const SIMILARITY_SCORE_THRESHOLD = 0.7
+const SIMILARITY_SCORE_THRESHOLD = 0.75
 
 export default class VectorDB {
   vectorStore: MemoryVectorStore | undefined
@@ -56,7 +56,7 @@ export default class VectorDB {
   }
 
   async queryNotes(document: string): Promise<QueryResult> {
-    const results = await this.vectorStore?.similaritySearchWithScore(document, 2)
+    const results = await this.vectorStore?.similaritySearchWithScore(document, 5)
 
     if (results === undefined) {
       new Notice("There were no matching documents")

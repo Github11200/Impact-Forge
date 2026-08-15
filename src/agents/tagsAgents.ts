@@ -13,7 +13,6 @@ Tagging Guidelines:
    - If NO existing candidate fits a core topic in the note, CREATE A NEW TAG for that topic.
 3. Always ensure major foundational subjects (e.g., AI, LLMs, workflow, networking) are tagged if the note discusses them, even if you must create new tags.
 4. Formatting: Lowercase, hyphenated (e.g., "local-models"), concise, and no special characters or "#" symbols.
-5. Maximum of 3 tags.
 
 Examples:
 

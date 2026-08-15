@@ -19,12 +19,14 @@ import Counter from './components/OrganizeButton.svelte';
 import { mount, unmount } from 'svelte';
 import OrganizationWorkflow from './workflow';
 import VectorDB from './db';
+import NotesGraph from './graph';
 
 // Remember to rename these classes and interfaces!
 
 export default class NotesOrganizerPlugin extends Plugin {
   settings!: MyPluginSettings;
   vectorDB = new VectorDB()
+  graphDB = new NotesGraph()
   isWorkflowRunning: boolean = false
 
   // Load the data from the JSON file into the vector database to be queried
@@ -49,6 +51,22 @@ export default class NotesOrganizerPlugin extends Plugin {
     await this.saveData(data);
   }
 
+  async loadGraphData() {
+    const data = await this.loadData()
+
+    if (data && data.graphData)
+      this.graphDB.loadFromJSON(data.graphData)
+  }
+
+  async saveGraphDatabase() {
+    const jsonString = this.graphDB.exportToJSON()
+
+    const data = (await this.loadData()) || {}
+    data.graphData = jsonString
+
+    await this.saveData(data)
+  }
+
   async fileUpdate(file: TAbstractFile, vectorDB: VectorDB, path: string) {
     if (!vectorDB.deleteDocumentByPath(path)) return;
 
@@ -63,6 +81,7 @@ export default class NotesOrganizerPlugin extends Plugin {
   async onload() {
     await this.loadSettings();
     await this.loadVectorDatabase();
+    await this.loadGraphData();
 
     this.app.vault.on("rename", (file, oldPath) => {
       // If the workflow is running then we don't want to change anything in the vector store
@@ -145,7 +164,7 @@ export default class NotesOrganizerPlugin extends Plugin {
 
     const content = await this.app.vault.read(activeFile);
 
-    const workflow = new OrganizationWorkflow(this.app, activeFile, content, this.vectorDB);
+    const workflow = new OrganizationWorkflow(this.app, activeFile, content, this.vectorDB, this.graphDB);
     const updatedFile = await workflow.run()
 
     if (updatedFile === undefined)
