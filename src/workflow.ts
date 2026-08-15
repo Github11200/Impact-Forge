@@ -55,6 +55,15 @@ export default class OrganizationWorkflow {
     }
   }
 
+  sanitizeTitle(title: string): string {
+    return title
+      .replace(/^(\/\/|#+|\s)+/, "") // Remove leading comments or headers
+      .replace(/\.md$/i, "")        // Remove trailing extension
+      .replace(/[:\\/:*?"<>|]/g, "") // Remove colons and illegal characters
+      .replace(/\s+/g, " ")         // Normalize spacing
+      .trim();
+  }
+
   async getTitle(): Promise<string> {
     const noteTitleAgentResult = await noteTitleAgent.invoke({
       messages: [
@@ -63,7 +72,8 @@ export default class OrganizationWorkflow {
     })
 
     try {
-      const title = JSON.parse(noteTitleAgentResult.messages[1]?.content as string).title
+      // Sanitize the title to get rid of illegal characters
+      const title = this.sanitizeTitle(JSON.parse(noteTitleAgentResult.messages[1]?.content as string).title)
       return title;
     } catch {
       new Notice("Error generating title")
@@ -80,7 +90,7 @@ export default class OrganizationWorkflow {
       ? `${currentFolder}/${newTitle}${extension}`
       : `${newTitle}${extension}`;
 
-    console.log(newPath)
+    console.log("File Path for file title: ", newPath)
 
     try {
       await this.app.fileManager.renameFile(this.file, newPath);
@@ -211,24 +221,32 @@ export default class OrganizationWorkflow {
 
   // As the an agent to generate tag names for this note
   async getTagNames(relevantNotes: QueryResult): Promise<string[]> {
-    const candidateTags = this.getTagNamesFromNotes(relevantNotes)
-    console.log(candidateTags)
+    const candidateTags = this.getTagNamesFromNotes(relevantNotes);
+    const candidateListFormatted = [...candidateTags].length > 0
+      ? [...candidateTags].map(tag => `- ${tag}`).join('\n')
+      : "None";
+
     const tagsAgentResult = await tagsAgent.invoke({
       messages: [
         {
-          role: "human", content: `Analyze the following note and select 1-3 tags.
+          role: "human",
+          content: `Analyze the note content below and assign 2-4 tags covering both the main subject matter/tools discussed and the broader domain.
 
-          Note Content:
-          """
-          ${this.noteContent}
-          """
+Note Content:
+"""
+${this.noteContent}
+"""
 
-          Existing Candidate Tags from Similar Notes:
-          ${Array.from(candidateTags).map(tag => `- ${tag}`).join('\n')}
+Existing Candidate Tags from Similar Notes:
+${candidateListFormatted}
 
-          Select the most relevant tags from the candidates above, or create a new one only if necessary.` }
+Instructions:
+- Compare the core concepts of the note against the Existing Candidates list.
+- Use candidate tags where relevant.
+- CREATE NEW TAGS for key subjects or technologies (like AI, LLMs, or prompt-engineering) if they are missing from the candidates list.`
+        }
       ]
-    })
+    });
 
     try {
       const tags = JSON.parse(tagsAgentResult.messages[1]?.content as string).tags
@@ -271,9 +289,11 @@ export default class OrganizationWorkflow {
     })
 
     try {
+      console.log(referencesAgentResult)
       const references = JSON.parse(referencesAgentResult.messages[1]?.content as string).references
       return references;
-    } catch {
+    } catch (error) {
+      console.log("Error when deciding references: ", error)
       new Notice("Could not get the references")
       return []
     }

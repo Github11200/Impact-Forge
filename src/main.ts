@@ -3,6 +3,8 @@ import {
   Notice,
   Plugin,
   App,
+  TAbstractFile,
+  TFile,
 } from 'obsidian';
 import {
   DEFAULT_SETTINGS,
@@ -23,6 +25,7 @@ import VectorDB from './db';
 export default class NotesOrganizerPlugin extends Plugin {
   settings!: MyPluginSettings;
   vectorDB = new VectorDB()
+  isWorkflowRunning: boolean = false
 
   // Load the data from the JSON file into the vector database to be queried
   async loadVectorDatabase() {
@@ -46,9 +49,30 @@ export default class NotesOrganizerPlugin extends Plugin {
     await this.saveData(data);
   }
 
+  async fileUpdate(file: TAbstractFile, vectorDB: VectorDB, path: string) {
+    if (!vectorDB.deleteDocumentByPath(path)) return;
+
+    if (file instanceof TFile) {
+      const content = await this.app.vault.read(file)
+      await this.vectorDB.addDocument(file, content)
+    }
+
+    this.saveVectorDatabase()
+  }
+
   async onload() {
     await this.loadSettings();
     await this.loadVectorDatabase();
+
+    this.app.vault.on("rename", (file, oldPath) => {
+      // If the workflow is running then we don't want to change anything in the vector store
+      if (!this.isWorkflowRunning)
+        this.fileUpdate(file, this.vectorDB, oldPath)
+    })
+    this.app.vault.on("modify", (file) => {
+      if (!this.isWorkflowRunning)
+        this.fileUpdate(file, this.vectorDB, file.path)
+    })
 
     // Register the view
     this.registerView(
@@ -111,6 +135,8 @@ export default class NotesOrganizerPlugin extends Plugin {
   }
 
   organizeButtonCallback = async () => {
+    this.isWorkflowRunning = true
+
     const activeFile = this.app.workspace.getActiveFile();
     if (!activeFile) {
       new Notice('No active file selected.');
@@ -120,9 +146,6 @@ export default class NotesOrganizerPlugin extends Plugin {
     const content = await this.app.vault.read(activeFile);
 
     const workflow = new OrganizationWorkflow(this.app, activeFile, content, this.vectorDB);
-    console.log(await workflow.vectorDB.queryNotes("wifi, and networking"))
-    return;
-
     const updatedFile = await workflow.run()
 
     if (updatedFile === undefined)
@@ -133,6 +156,8 @@ export default class NotesOrganizerPlugin extends Plugin {
       await this.saveVectorDatabase()
       new Notice("Saved the vector database")
     }
+
+    this.isWorkflowRunning = false
   }
 }
 

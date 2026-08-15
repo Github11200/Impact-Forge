@@ -4,7 +4,7 @@ import { ChatOllama } from "@langchain/ollama";
 
 const systemPrompt = `You are a strict note classification agent. Classify the input note into exactly one of three categories based on these definitions:
 
-1. 'rough-note': Fragmentary, unrefined, or mixed ideas, to-do lists, fleeting thoughts, or brainstorms.
+1. 'rough-note': Fragmentary, unrefined, or mixed ideas, to-do lists, fleeting thoughts, brainstorms, or some experience.
 2. 'source-note': Direct quotes, summaries, or paraphrases primarily attributing ideas, data, or arguments to external authors or literature.
 3. 'polished-note': Well-structured, standalone, atomic concepts articulated in your own words, explaining a single principle, mental model, or insight clearly without relying on an external quote.
 

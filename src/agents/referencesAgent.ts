@@ -1,4 +1,4 @@
-import { createAgent } from "langchain";
+import { createAgent, providerStrategy } from "langchain";
 import { NoteReferences } from "../types";
 import { ChatOllama } from "@langchain/ollama";
 
@@ -11,14 +11,15 @@ Rules:
 3. Do NOT link notes if the connection is superficial, weak, or purely coincidental.
 4. Output MUST strictly match the required JSON schema containing an array of reference note titles.`;
 
+
 export const referencesAgent = createAgent({
   model: new ChatOllama({
     model: "qwen3:4b",
     temperature: 0.1,
-    format: "json"
+    format: NoteReferences.toJSONSchema()
   }),
   name: "References Agent",
   description: "An agent that decides what other notes to interlink to.",
   systemPrompt: systemPrompt,
-  responseFormat: NoteReferences
+  responseFormat: providerStrategy(NoteReferences)
 });

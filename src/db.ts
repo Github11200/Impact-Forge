@@ -4,7 +4,7 @@ import { OllamaEmbeddings } from "@langchain/ollama";
 import { Document } from "langchain";
 import type { QueryResult } from "./types";
 
-const SIMILARITY_SCORE_THRESHOLD = 0.5
+const SIMILARITY_SCORE_THRESHOLD = 0.7
 
 export default class VectorDB {
   vectorStore: MemoryVectorStore | undefined
@@ -73,13 +73,32 @@ export default class VectorDB {
     return queryResult
   }
 
+  async deleteDocumentByPath(path: string): Promise<boolean> {
+    if (!this.vectorStore) return false;
+
+    const store = this.vectorStore as any;
+
+    if (Array.isArray(store.memoryVectors)) {
+      const initialCount = store.memoryVectors.length;
+
+      store.memoryVectors = store.memoryVectors.filter(
+        (mv: any) => mv.metadata?.path !== path
+      );
+
+      return initialCount > store.memoryVectors.length;
+    }
+
+    return false;
+  }
+
   async addDocument(file: TFile, content: string) {
     const document = new Document({
       pageContent: content,
       metadata: {
         path: file.path,
         title: file.basename,
-      }
+      },
+      id: file.path
     })
 
     await this.vectorStore?.addDocuments([document])
