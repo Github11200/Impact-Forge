@@ -55,14 +55,20 @@ export default class OrganizationWorkflow {
     }
   }
 
-  async getTitle() {
+  async getTitle(): Promise<string> {
     const noteTitleAgentResult = await noteTitleAgent.invoke({
       messages: [
         { role: "human", content: this.noteContent }
       ]
     })
 
-    return noteTitleAgentResult.messages[0]?.content as string
+    try {
+      const title = JSON.parse(noteTitleAgentResult.messages[1]?.content as string).title
+      return title;
+    } catch {
+      new Notice("Error generating title")
+      return ""
+    }
   }
 
   async updateFileTitle(newTitle: string) {
@@ -73,6 +79,8 @@ export default class OrganizationWorkflow {
     const newPath = currentFolder
       ? `${currentFolder}/${newTitle}${extension}`
       : `${newTitle}${extension}`;
+
+    console.log(newPath)
 
     try {
       await this.app.fileManager.renameFile(this.file, newPath);
@@ -125,6 +133,25 @@ export default class OrganizationWorkflow {
 
   // Update the text file and add the backlinks in
   async updateNoteTags(tags: string[]) {
+    const targetFolder = "4 - Tags"
+
+    // Go through all the tags and create the files so you can backlink to them
+    for (const tag of tags) {
+      const tagFilePath = `${targetFolder}/${tag}.md`;
+
+      // Check if the tag note already exists in the vault
+      const existingFile = this.app.vault.getAbstractFileByPath(tagFilePath);
+
+      if (!existingFile) {
+        try {
+          // Create an empty note for the tag
+          await this.app.vault.create(tagFilePath, "");
+        } catch (error) {
+          console.error(`Failed to create tag file for "${tag}":`, error);
+        }
+      }
+    }
+
     // Format the tag strings into Obsidian backlinks
     // ["ai", "philosophy"] -> "[[ai]] [[philosophy]]"
     const formattedTags = tags.map(tag => `[[${tag}]]`).join(" ");
@@ -147,6 +174,7 @@ export default class OrganizationWorkflow {
 
     try {
       await this.app.vault.modify(this.file, updatedContent);
+      this.noteContent = updatedContent
     } catch (error) {
       console.error("Failed to update tags in note:", error);
       new Notice("Error updating note tags");
@@ -174,6 +202,7 @@ export default class OrganizationWorkflow {
 
     try {
       await this.app.vault.modify(this.file, updatedContent);
+      this.noteContent = updatedContent
     } catch (error) {
       console.error("Failed to update references in note:", error);
       new Notice("Error updating note references");
@@ -211,6 +240,10 @@ export default class OrganizationWorkflow {
   }
 
   async getReferences(relevantNotes: QueryResult): Promise<string[]> {
+    // If there are no relevant notes then don't return anything
+    if (!relevantNotes || relevantNotes.length === 0)
+      return [];
+
     const candidateListFormatted = relevantNotes.map((doc, idx) => {
       const title = doc.metadata?.title
 
@@ -247,12 +280,32 @@ export default class OrganizationWorkflow {
   }
 
   async run() {
+    // GET THE MOST RELEVANT NOTES TO THE CURRENT ONE
+    const queryResult = await this.vectorDB.queryNotes(this.noteContent)
+    new Notice("Found relevant notes")
+
+    console.log(queryResult)
+
+    // DECIDE THE TAG NAME BASED ON THE RELEVANT NOTES
+    const tagNames = await this.getTagNames(queryResult)
+    await this.updateNoteTags(tagNames)
+
+    new Notice("Decided tag names")
+
+    // DECIDE WHAT OTHER NOTES TO CONNECT TO
+    const references = await this.getReferences(queryResult)
+    await this.updateNoteReferences(references)
+
+    new Notice("Connected to other notes")
+
     // GENERATE THE NOTE TITLE
     const newTitle = await this.getTitle()
     if (newTitle === undefined) {
       new Notice("Error generating the title for the document")
       return
     }
+    await this.updateFileTitle(newTitle)
+    new Notice("Generated the title")
 
     // GET THE NOTE TYPE
     const noteType = await this.classifyNote()
@@ -260,19 +313,11 @@ export default class OrganizationWorkflow {
       new Notice("Exiting run dude to classifier agent error")
       return
     }
+    await this.moveFileToFolder(noteType.noteType)
+    new Notice("Classified the note")
 
-    // GET THE MOST RELEVANT NOTES TO THE CURRENT ONE
-    const queryResult = await this.vectorDB.queryNotes(this.noteContent)
+    new Notice("Updated the file")
 
-    // DECIDE THE TAG NAME BASED ON THE RELEVANT NOTES
-    const tagNames = await this.getTagNames(queryResult)
-    await this.updateNoteTags(tagNames)
-
-    // DECIDE WHAT OTHER NOTES TO CONNECT TO
-    const references = await this.getReferences(queryResult)
-    await this.updateNoteReferences(references)
-
-    this.updateFileTitle(newTitle)
-    this.moveFileToFolder(noteType.noteType)
+    return this.file
   }
 }

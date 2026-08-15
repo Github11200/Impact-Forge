@@ -6,7 +6,7 @@ export const NoteType = z.object({
   noteType: NoteTypes
 })
 
-export const NoteTitle = z.string()
+export const NoteTitle = z.object({ title: z.string() })
 export const NoteTags = z.object({ tags: z.array(z.string()) })
 export const NoteReferences = z.object({ references: z.array(z.string()) })
 

@@ -21,7 +21,7 @@ Return only valid JSON matching the requested format.`;
 
 export const noteTitleAgent = createAgent({
   model: new ChatOllama({
-    model: "llama3.2:1b",
+    model: "qwen3:1.7b",
     temperature: 0.2,
     format: "json",
   }),

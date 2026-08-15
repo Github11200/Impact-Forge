@@ -120,14 +120,19 @@ export default class NotesOrganizerPlugin extends Plugin {
     const content = await this.app.vault.read(activeFile);
 
     const workflow = new OrganizationWorkflow(this.app, activeFile, content, this.vectorDB);
+    console.log(await workflow.vectorDB.queryNotes("wifi, and networking"))
+    return;
 
-    // await this.vectorDB.addDocument(activeFile, content)
-    // this.saveVectorDatabase()
+    const updatedFile = await workflow.run()
 
-    // console.log("added document")
-    // workflow.getTagNames(await this.vectorDB.queryNotes("Some note"))
-
-    workflow.moveFileToFolder("rough-note")
+    if (updatedFile === undefined)
+      new Notice("Error organizing the file")
+    else {
+      await this.vectorDB.addDocument(updatedFile, content)
+      new Notice("Added document to the vector database")
+      await this.saveVectorDatabase()
+      new Notice("Saved the vector database")
+    }
   }
 }
 
