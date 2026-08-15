@@ -5,3 +5,6 @@ export const NoteType = z.object({
 })
 
 export const NoteTitle = z.string()
+
+
+export type QueryResult = { score: number, text: string, metadata: Record<string, any> }[]

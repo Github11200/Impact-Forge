@@ -1,16 +1,21 @@
 import type z from "zod";
-import type { NoteType } from "./types"
+import type { NoteType, QueryResult } from "./types"
 import { noteTypeClassifierAgent } from "./agents/noteTypeClassifierAgent";
-import { Notice } from "obsidian";
+import { App, Notice, TFile } from "obsidian";
 import VectorDB from "./db";
 import { noteTitleAgent } from "./agents/titleAgent";
 
 export default class OrganizationWorkflow {
+  app: App
+  file: TFile
   noteContent: string
-  noteTitle: string = ""
+  vectorDB: VectorDB
 
-  constructor(fileContent: string) {
+  constructor(app: App, file: TFile, fileContent: string, vectorDB: VectorDB) {
+    this.app = app
+    this.file = file
     this.noteContent = fileContent
+    this.vectorDB = vectorDB
   }
 
   // Figure out whether the note is source material, a rough note, or a polished note
@@ -58,14 +63,43 @@ export default class OrganizationWorkflow {
     return noteTitleAgentResult.messages[0]?.content as string
   }
 
+  async getTagName(relevantNotes: QueryResult) {
+    // TODO: implement
+  }
+
+  async getReferences(relevantNotes: QueryResult) {
+    // TODO: Implement
+  }
+
+  async updateFileTitle(newTitle: string) {
+    // Maintain the existing directory path
+    const currentFolder = this.file.parent ? this.file.parent.path : "";
+    const extension = this.file.extension ? `.${this.file.extension}` : ".md";
+
+    const newPath = currentFolder
+      ? `${currentFolder}/${newTitle}${extension}`
+      : `${newTitle}${extension}`;
+
+    try {
+      await this.app.fileManager.renameFile(this.file, newPath);
+    } catch (error) {
+      console.error("Failed to rename file:", error);
+      new Notice("Error updating note title");
+    }
+  }
+
+  async moveFileToFolder(type: string) {
+
+  }
+
   async run() {
     // GENERATE THE NOTE TITLE
-    const titleResult = await this.getTitle()
-    if (titleResult === undefined) {
+    const newTitle = await this.getTitle()
+    if (newTitle === undefined) {
       new Notice("Error generating the title for the document")
       return
     }
-    this.noteTitle = titleResult
+    this.updateFileTitle(newTitle)
 
     // GET THE NOTE TYPE
     const noteType = await this.classifyNote()
@@ -74,9 +108,13 @@ export default class OrganizationWorkflow {
       return
     }
 
-    // GET THE MOST RELAVENT NOTES TO THIS ONE
-    const vectra = new VectorDB()
-    await vectra.initializeDatabase()
-    const queryResult = await vectra.queryNotes(this.noteContent)
+    // GET THE MOST RELEVANT NOTES TO THE CURRENT ONE
+    const queryResult = await this.vectorDB.queryNotes(this.noteContent)
+
+    // DECIDE THE TAG NAME BASED ON THE RELEVANT NOTES
+    await this.getTagName(queryResult)
+
+    // DECIDE WHAT OTHER NOTES TO CONNECT TO
+    await this.getReferences(queryResult)
   }
 }

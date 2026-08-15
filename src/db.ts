@@ -2,8 +2,7 @@ import { Notice } from "obsidian";
 import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
 import { OllamaEmbeddings } from "@langchain/ollama";
 import { Document } from "langchain";
-
-type QueryResult = { score: number, text: string, metadata: Record<string, any> }[]
+import type { QueryResult } from "./types";
 
 export default class VectorDB {
   vectorStore: MemoryVectorStore | undefined

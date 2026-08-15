@@ -1,7 +1,4 @@
 import {
-  Editor,
-  MarkdownView,
-  type MarkdownFileInfo,
   Modal,
   Notice,
   Plugin,
@@ -76,43 +73,6 @@ export default class NotesOrganizerPlugin extends Plugin {
     );
   }
 
-  organizeButtonCallback = async () => {
-    const activeFile = this.app.workspace.getActiveFile();
-    if (!activeFile) {
-      new Notice('No active file selected.');
-      return;
-    }
-
-    const content = await this.app.vault.read(activeFile);
-    const title = activeFile.basename;
-
-    new Notice(`Processing "${title}"...`);
-
-    // 1. Add current file content to persistent vector DB instance
-    await this.vectorDB.addDocument(content, title);
-
-    // 2. Persist updated vector store to JSON file
-    await this.saveVectorDatabase();
-    new Notice(`Saved "${title}" to Vector DB!`);
-
-    // 3. Test Query 1: Query using the exact content of the current file
-    console.log(`=== TEST 1: Exact Match Query for "${title}" ===`);
-    const exactRes = await this.vectorDB.queryNotes(content);
-    console.log('Results:', exactRes);
-
-    // 4. Test Query 2: Query using a semantic prompt (not identical words)
-    const testSemanticQuery = "What are the rules or key concepts discussed here?";
-    console.log(`=== TEST 2: Semantic Query ("${testSemanticQuery}") ===`);
-    const semanticRes = await this.vectorDB.queryNotes(testSemanticQuery);
-    console.log('Results:', semanticRes);
-
-    // Notice output
-    if (semanticRes.length > 0) {
-      const topMatch = semanticRes[0];
-      new Notice(`Top Match: ${topMatch.metadata.name} (Score: ${topMatch.score.toFixed(3)})`);
-    }
-  }
-
   onunload() { }
 
   async loadSettings() {
@@ -148,6 +108,19 @@ export default class NotesOrganizerPlugin extends Plugin {
     // "Reveal" the leaf in case it is in a collapsed sidebar
     // @ts-ignore
     workspace.revealLeaf(leaf);
+  }
+
+  organizeButtonCallback = async () => {
+    const activeFile = this.app.workspace.getActiveFile();
+    if (!activeFile) {
+      new Notice('No active file selected.');
+      return;
+    }
+
+    const content = await this.app.vault.read(activeFile);
+    const title = activeFile.basename;
+
+    const workflow = new OrganizationWorkflow(this.app, activeFile, content, this.vectorDB);
   }
 }
 
