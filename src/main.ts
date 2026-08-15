@@ -134,11 +134,7 @@ export class PluginView extends ItemView {
 
     const vectra = new VectraClass()
     await vectra.initializeDatabase()
-    console.log("initialized")
-    // await vectra.addDocument(content, "Title")
-
-    // const res = await vectra.queryNotes(content)
-    // console.log(res)
+    await vectra.addDocument(content, "Title")
   };
 
   async onOpen() {

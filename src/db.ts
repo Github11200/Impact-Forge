@@ -1,54 +1,46 @@
 import { Notice } from "obsidian";
-
+import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
+import { OllamaEmbeddings } from "@langchain/ollama";
+import { Document } from "langchain";
 
 type QueryResult = { score: number, text: string }[]
 
 export default class VectraClass {
-  index: LocalDocumentIndex | undefined
+  vectorStore: MemoryVectorStore | undefined
+  embeddings: OllamaEmbeddings | undefined
 
   async initializeDatabase() {
-    const pc = new Pinecone({ apiKey: 'YOUR_API_KEY' });
+    this.embeddings = new OllamaEmbeddings({
+      model: "nomic-embed-text", // Default value
+      baseUrl: "http://localhost:11434", // Default value
+    });
 
-    // const embeddings = await TransformersEmbeddings.create();
-    // console.log(TransformersEmbeddings)
-    // this.index = new LocalDocumentIndex({foldrePath: path.join(process.cwd(), 'my-index')}, embeddings);
-
-    // const isCreated = await this.index.isIndexCreated()
-
-    // if (!isCreated) {
-    //   await this.index.createIndex({
-    //     version: 1,
-    //   })
-    // }
+    this.vectorStore = new MemoryVectorStore(this.embeddings);
   }
 
-  // async queryNotes(document: string): Promise<QueryResult> {
-  //   const results = await this.index?.queryDocuments(document, {
-  //     maxDocuments: 5,
-  //     maxChunks: 20
-  //   })
+  async queryNotes(document: string): Promise<QueryResult> {
+    const results = await this.vectorStore?.similaritySearchWithScore(document, 2)
 
-  //   if (results === undefined) {
-  //     new Notice("There were no matching documents")
-  //     return []
-  //   }
+    if (results === undefined) {
+      new Notice("There were no matching documents")
+      return []
+    }
 
-  //   let queryResult: QueryResult = []
-  //   for (const result of results) {
-  //     const sections = await result.renderSections(2000, 1, false)
+    let queryResult: QueryResult = results.map(([doc, score], _) => {
+      return { text: doc.pageContent, score: score }
+    })
 
-  //     for (const section of sections) {
-  //       queryResult.push({
-  //         text: section.text,
-  //         score: section.score,
-  //       })
-  //     }
-  //   }
+    return queryResult
+  }
 
-  //   return queryResult
-  // }
+  async addDocument(content: string, name: string) {
+    const document = new Document({
+      pageContent: content,
+      metadata: {
+        name: name,
+      }
+    })
 
-  // async addDocument(document: string, name: string) {
-  //   await this.index?.upsertDocument(`doc://${name}`, document, "md")
-  // }
+    await this.vectorStore?.addDocuments([document])
+  }
 }
