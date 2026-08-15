@@ -127,7 +127,7 @@ export default class NotesOrganizerPlugin extends Plugin {
     // console.log("added document")
     // workflow.getTagNames(await this.vectorDB.queryNotes("Some note"))
 
-    workflow.updateNoteReferences(["one", "two"])
+    workflow.moveFileToFolder("rough-note")
   }
 }
 

@@ -1,5 +1,5 @@
 import type z from "zod";
-import type { NoteType, QueryResult } from "./types"
+import type { NoteType, NoteTypes, QueryResult } from "./types"
 import { noteTypeClassifierAgent } from "./agents/noteTypeClassifierAgent";
 import { App, Notice, TFile } from "obsidian";
 import VectorDB from "./db";
@@ -82,8 +82,25 @@ export default class OrganizationWorkflow {
     }
   }
 
-  async moveFileToFolder(type: string) {
+  async moveFileToFolder(noteType: z.infer<typeof NoteTypes>) {
+    let folderName: string = "";
+    if (noteType === "rough-note")
+      folderName = "1 - Rough Notes"
+    else if (noteType === "source-note")
+      folderName = "2 - Source Material"
+    else if (noteType === "polished-note")
+      folderName = "3 - Full Notes"
 
+    // Ensure the target path ends properly and includes the filename
+    const newPath = `${folderName}/${this.file.name}`
+
+    try {
+      // app.fileManager.renameFile handles both renaming and moving
+      await this.app.fileManager.renameFile(this.file, newPath);
+    } catch (error) {
+      console.error("Failed to move file:", error);
+      new Notice("Error moving file to folder");
+    }
   }
 
   getTagNamesFromNotes(notes: QueryResult) {
@@ -239,7 +256,7 @@ export default class OrganizationWorkflow {
 
     // GET THE NOTE TYPE
     const noteType = await this.classifyNote()
-    if (typeof noteType === void 0) {
+    if (noteType === void 0) {
       new Notice("Exiting run dude to classifier agent error")
       return
     }
@@ -256,5 +273,6 @@ export default class OrganizationWorkflow {
     await this.updateNoteReferences(references)
 
     this.updateFileTitle(newTitle)
+    this.moveFileToFolder(noteType.noteType)
   }
 }

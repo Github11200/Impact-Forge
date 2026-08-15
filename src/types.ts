@@ -1,7 +1,9 @@
 import z from "zod"
 
+export const NoteTypes = z.enum(["rough-note", "source-note", "polished-note"])
+
 export const NoteType = z.object({
-  noteType: z.enum(["rough-note", "source-note", "polished-note"])
+  noteType: NoteTypes
 })
 
 export const NoteTitle = z.string()
