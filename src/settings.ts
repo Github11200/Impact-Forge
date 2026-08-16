@@ -1,15 +1,15 @@
 import { App, PluginSettingTab, Setting } from 'obsidian';
 import NotesOrganizerPlugin from './main';
 
-export interface MyPluginSettings {
+export interface PluginSettings {
   geminiAPIKey: string;
 }
 
-export const DEFAULT_SETTINGS: MyPluginSettings = {
+export const DEFAULT_SETTINGS: PluginSettings = {
   geminiAPIKey: 'default',
 };
 
-export class SampleSettingTab extends PluginSettingTab {
+export class SettingTab extends PluginSettingTab {
   plugin: NotesOrganizerPlugin;
 
   constructor(app: App, plugin: NotesOrganizerPlugin) {

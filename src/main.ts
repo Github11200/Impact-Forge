@@ -13,7 +13,7 @@ import {
 } from 'obsidian';
 import {
   DEFAULT_SETTINGS,
-  type MyPluginSettings,
+  type PluginSettings,
 } from './settings';
 
 import { ItemView, WorkspaceLeaf } from 'obsidian';
@@ -28,7 +28,7 @@ import QueryWorkflow from './workflows/queryWorkflow';
 import { modelManager } from './modelManager';
 
 export default class NotesOrganizerPlugin extends Plugin {
-  settings!: MyPluginSettings;
+  settings!: PluginSettings;
   vectorDB = new VectorDB()
   graphDB = new NotesGraph(this.app)
   isWorkflowRunning: boolean = false
@@ -100,7 +100,7 @@ export default class NotesOrganizerPlugin extends Plugin {
     modelManager.updateApiKey(geminiSecret)
 
     // Add the setting tab
-    this.addSettingTab(new SampleSettingTab(this.app, this));
+    this.addSettingTab(new SettingTab(this.app, this));
 
     // 1. Rename event: Update graphology node in-place
     this.registerEvent(
@@ -188,7 +188,7 @@ export default class NotesOrganizerPlugin extends Plugin {
     this.settings = Object.assign(
       {},
       DEFAULT_SETTINGS,
-      (await this.loadData()) as Partial<MyPluginSettings>,
+      (await this.loadData()) as Partial<PluginSettings>,
     );
   }
 
@@ -352,7 +352,7 @@ export class PluginView extends ItemView {
   }
 }
 
-class SampleSettingTab extends PluginSettingTab {
+class SettingTab extends PluginSettingTab {
   plugin: NotesOrganizerPlugin;
 
   constructor(app: App, plugin: NotesOrganizerPlugin) {

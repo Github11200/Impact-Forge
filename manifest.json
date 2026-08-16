@@ -3,9 +3,9 @@
   "name": "Notes Organizer",
   "version": "1.0.0",
   "minAppVersion": "1.0.0",
-  "description": "Automatic notes organization for Obsidian",
+  "description": "Automatically link and structure your notes into a second brain.",
   "author": "Jinay Patel",
   "authorUrl": "https://github.com/Github11200",
-  "fundingUrl": "https://obsidian.md/pricing",
+  "fundingUrl": "",
   "isDesktopOnly": true
 }
