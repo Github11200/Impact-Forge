@@ -17,9 +17,10 @@ import { ItemView, WorkspaceLeaf } from 'obsidian';
 // Import the Counter Svelte component and the `mount` and `unmount` methods.
 import Counter from './components/Sidebar.svelte';
 import { mount, unmount } from 'svelte';
-import OrganizationWorkflow from './workflow';
+import OrganizationWorkflow from './workflows/organizationWorkflow';
 import VectorDB from './vectorDB';
 import NotesGraph from './graphDB';
+import QueryWorkflow from './workflows/queryWorkflow';
 
 // Remember to rename these classes and interfaces!
 
@@ -94,11 +95,22 @@ export default class NotesOrganizerPlugin extends Plugin {
     })
     this.app.vault.on("delete", (file) => {
       if (file instanceof TFile)
-        this.graphDB.removeNote(file)
+        this.graphDB.removeNote(file.path)
+    })
+
+    // Populate the graph if it has 0 nodes
+    this.app.workspace.onLayoutReady(() => {
+      if (this.graphDB.graph.order !== 0) return
+
+      this.graphDB.populateGraph()
+      this.saveGraphDatabase()
     })
 
     // If the links in a file are changed then update the graph
     this.app.metadataCache.on("changed", (file, _, cache) => {
+      // If the file that was changed was a file for a tag then ignore it
+      if (file.parent?.name === "4 - Tags")
+        return
       this.graphDB.updateGraph(file, cache)
       this.saveGraphDatabase()
     })
@@ -106,7 +118,7 @@ export default class NotesOrganizerPlugin extends Plugin {
     // Register the view
     this.registerView(
       VIEW_TYPE_EXAMPLE,
-      (leaf) => new PluginView(leaf, this.organizeButtonCallback, this.questionButtonCallback)
+      (leaf) => new PluginView(leaf, this.organizeButtonCallback, this.queryButtonCallback)
     );
 
     this.addRibbonIcon('dice', 'Activate view', () => {
@@ -163,23 +175,32 @@ export default class NotesOrganizerPlugin extends Plugin {
     workspace.revealLeaf(leaf);
   }
 
-  questionButtonCallback = async () => {
-
-  }
-
-  organizeButtonCallback = async () => {
-    this.isWorkflowRunning = true
-
+  getActiveFile() {
     const activeFile = this.app.workspace.getActiveFile();
     if (!activeFile) {
       new Notice('No active file selected.');
       return;
     }
 
+    return activeFile
+  }
+
+  queryButtonCallback = async (query: string) => {
+    const queryWorkflow = new QueryWorkflow(this.app, this.vectorDB, this.graphDB)
+
+    queryWorkflow.run(query)
+  }
+
+  organizeButtonCallback = async () => {
+    this.isWorkflowRunning = true
+
+    const activeFile = this.getActiveFile()
+    if (activeFile === undefined) return;
+
     const content = await this.app.vault.read(activeFile);
 
-    const workflow = new OrganizationWorkflow(this.app, activeFile, content, this.vectorDB);
-    const updatedFile = await workflow.run()
+    const organizationWorkflow = new OrganizationWorkflow(this.app, activeFile, content, this.vectorDB);
+    const updatedFile = await organizationWorkflow.run()
 
     if (updatedFile === undefined) {
       new Notice("Error organizing the file, aborting...")
@@ -214,12 +235,13 @@ export const VIEW_TYPE_EXAMPLE = 'example-view';
 export class PluginView extends ItemView {
   component: Record<string, any> | undefined;
   organizeButtonCallback;
-  questionButtonCallback;
+  queryButtonCallback;
+  inputValue: string = ''
 
-  constructor(leaf: WorkspaceLeaf, organizeButtonCallback: any, questionButtonCallback: any) {
+  constructor(leaf: WorkspaceLeaf, organizeButtonCallback: any, queryButtonCallback: any) {
     super(leaf);
     this.organizeButtonCallback = organizeButtonCallback
-    this.questionButtonCallback = questionButtonCallback
+    this.queryButtonCallback = queryButtonCallback
   }
 
   getViewType() {
@@ -235,7 +257,7 @@ export class PluginView extends ItemView {
       target: this.contentEl,
       props: {
         organizeButtonCallback: this.organizeButtonCallback,
-        questionButtonCallback: this.questionButtonCallback
+        queryButtonCallback: this.queryButtonCallback,
       },
     });
   }

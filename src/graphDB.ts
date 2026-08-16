@@ -11,15 +11,25 @@ export default class NotesGraph {
   }
 
   addNote(file: TFile) {
-    this.graph.addNode(file)
+    this.graph.addNode(file.path, {
+      path: file.path,
+      name: file.basename
+    })
   }
 
-  connectNotes(file1: TFile, file2: TFile) {
-    this.graph.addEdge(file1, file2)
+  connectNotes(file1Path: string, file2Path: string) {
+    if (!this.graph.hasEdge(file1Path, file2Path))
+      this.graph.addEdge(file1Path, file2Path)
   }
 
-  removeNote(file: TFile) {
-    this.graph.dropNode(file)
+  removeNote(filePath: string) {
+    this.graph.dropNode(filePath)
+  }
+
+  getNeighbours(path: string): TFile[] {
+    const neighborKeys = this.graph.neighbors(path)
+
+    return neighborKeys.map(key => this.graph.getNodeAttribute(key, 'file'));
   }
 
   loadFromJSON(jsonString: string) {
@@ -56,7 +66,7 @@ export default class NotesGraph {
     for (const link of resolvedLinks) {
       const secondFile = this.app.vault.getAbstractFileByPath(link)
       if (secondFile !== null && secondFile instanceof TFile)
-        this.connectNotes(file, secondFile)
+        this.connectNotes(file.path, secondFile.path)
     }
   }
 
@@ -80,7 +90,7 @@ export default class NotesGraph {
           const targetFile = this.app.vault.getAbstractFileByPath(targetPath);
 
           if (targetFile instanceof TFile) {
-            this.connectNotes(sourceFile, targetFile);
+            this.connectNotes(sourceFile.path, targetFile.path);
           }
         }
       }

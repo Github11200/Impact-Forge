@@ -1,11 +1,11 @@
 import type z from "zod";
-import type { NoteType, NoteTypes, QueryResult } from "./types"
-import { noteTypeClassifierAgent } from "./agents/noteTypeClassifierAgent";
+import type { NoteType, NoteTypes, QueryResult } from "../types"
+import { noteTypeClassifierAgent } from "../agents/noteTypeClassifierAgent";
 import { App, Notice, TFile } from "obsidian";
-import VectorDB from "./vectorDB";
-import { noteTitleAgent } from "./agents/titleAgent";
-import { tagsAgent } from "./agents/tagsAgents";
-import { referencesAgent } from "./agents/referencesAgent";
+import VectorDB from "../vectorDB";
+import { noteTitleAgent } from "../agents/titleAgent";
+import { tagsAgent } from "../agents/tagsAgents";
+import { referencesAgent } from "../agents/referencesAgent";
 
 export default class OrganizationWorkflow {
   app: App
@@ -308,6 +308,7 @@ Instructions:
 
     // DECIDE THE TAG NAME BASED ON THE RELEVANT NOTES
     const tagNames = await this.getTagNames(queryResult)
+    console.log(tagNames)
     await this.updateNoteTags(tagNames)
 
     new Notice("Decided tag names")

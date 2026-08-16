@@ -1,7 +1,7 @@
 <script lang="ts">
 	let {
 		organizeButtonCallback,
-		questionButtonCallback,
+		queryButtonCallback,
 		value = $bindable(''),
 	} = $props();
 </script>
@@ -18,11 +18,15 @@
 			onkeydown={(e) => {
 				if (e.key === 'Enter' && !e.shiftKey) {
 					e.preventDefault();
-					questionButtonCallback();
+					queryButtonCallback(value);
 				}
 			}}
 		></textarea>
-		<button onclick={questionButtonCallback}>Submit</button>
+		<button
+			onclick={() => {
+				queryButtonCallback(value);
+			}}>Submit</button
+		>
 	</label>
 </div>
 

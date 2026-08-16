@@ -1,4 +1,4 @@
-import { createAgent } from "langchain";
+import { createAgent, providerStrategy } from "langchain";
 import { NoteTags } from "../types";
 import { ChatOllama } from "@langchain/ollama";
 
@@ -29,10 +29,10 @@ export const tagsAgent = createAgent({
   model: new ChatOllama({
     model: "qwen3:4b",
     temperature: 0.1,
-    format: "json"
+    format: NoteTags.toJSONSchema()
   }),
   name: "Tags Agent",
   description: "An agent that assigns tags to a note.",
   systemPrompt: systemPrompt,
-  responseFormat: NoteTags
+  responseFormat: providerStrategy(NoteTags)
 })
