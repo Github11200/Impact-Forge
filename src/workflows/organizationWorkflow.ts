@@ -2,7 +2,7 @@ import type z from "zod";
 import type { NoteType, NoteTypes, QueryResult } from "../types"
 import { getNoteTypeClassifierAgent } from "../agents/noteTypeClassifierAgent";
 import { App, Notice, TFile } from "obsidian";
-import VectorDB from "../vectorDB";
+import VectorDB from "../services/vectorDB";
 import { getTitleAgent } from "../agents/titleAgent";
 import { getTagsAgent } from "../agents/tagsAgents";
 import { getReferencesAgent } from "../agents/referencesAgent";

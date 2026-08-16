@@ -2,30 +2,24 @@ import {
   Modal,
   Notice,
   Plugin,
-  App,
   TAbstractFile,
   TFile,
-  Component,
-  MarkdownRenderer,
-  PluginSettingTab,
-  SecretComponent,
-  Setting,
 } from 'obsidian';
-import {
-  DEFAULT_SETTINGS,
-  type PluginSettings,
-} from './settings';
+import type { CachedMetadata } from 'obsidian';
 
-import { ItemView, WorkspaceLeaf } from 'obsidian';
-
-// Import the Counter Svelte component and the `mount` and `unmount` methods.
-import Counter from './components/Sidebar.svelte';
-import { mount, unmount } from 'svelte';
+import { WorkspaceLeaf } from 'obsidian';
 import OrganizationWorkflow from './workflows/organizationWorkflow';
-import VectorDB from './vectorDB';
-import NotesGraph from './graphDB';
+import VectorDB from './services/vectorDB';
+import NotesGraph from './services/graphDB';
 import QueryWorkflow from './workflows/queryWorkflow';
 import { modelManager } from './modelManager';
+import type { PluginSettings } from './types';
+import { SettingTab } from './ui/settingTab';
+import { PluginView, VIEW_TYPE_EXAMPLE } from './ui/pluginView';
+
+export const DEFAULT_SETTINGS: PluginSettings = {
+  geminiAPIKey: 'default',
+};
 
 export default class NotesOrganizerPlugin extends Plugin {
   settings!: PluginSettings;
@@ -64,7 +58,7 @@ export default class NotesOrganizerPlugin extends Plugin {
     await this.saveData(data)
   }
 
-  async loadGraphData() {
+  async loadGraphDatabase() {
     const data = await this.loadData()
 
     if (data && data.graphData)
@@ -91,10 +85,67 @@ export default class NotesOrganizerPlugin extends Plugin {
     await this.saveVectorDatabase()
   }
 
+  private registerVaultAndMetadataEvents() {
+    this.registerEvent(this.app.vault.on("rename", this.onVaultRename));
+    this.registerEvent(this.app.vault.on("modify", this.onVaultModify));
+    this.registerEvent(this.app.metadataCache.on("changed", this.onMetadataChanged));
+    this.registerEvent(this.app.vault.on("delete", this.onVaultDelete));
+  }
+
+  private registerLayoutReadyInitialization() {
+    this.app.workspace.onLayoutReady(this.onLayoutReadyInitializeGraph);
+  }
+
+  private onVaultRename = async (file: TAbstractFile, oldPath: string) => {
+    if (file instanceof TFile && file.extension === "md") {
+      console.log(`[Rename Event] ${oldPath} -> ${file.path}`);
+
+      await this.fileUpdate(file, this.vectorDB, oldPath);
+      this.graphDB.renameNote(oldPath, file.path);
+      await this.saveGraphDatabase();
+    }
+  }
+
+  private onVaultModify = async (file: TAbstractFile) => {
+    if (this.isWorkflowRunning) return;
+
+    if (file instanceof TFile && file.extension === "md" && file.parent?.name !== "") {
+      console.log(`[Modify Event] ${file.path}`);
+      await this.fileUpdate(file, this.vectorDB, file.path);
+    }
+  }
+
+  private onMetadataChanged = (file: TFile, _data: string, cache: CachedMetadata) => {
+    if (this.isWorkflowRunning) return;
+
+    console.log(`[Metadata Changed] ${file.path}`);
+    this.graphDB.updateGraph(file, cache);
+    this.saveGraphDatabase();
+  }
+
+  private onVaultDelete = async (file: TAbstractFile) => {
+    if (file instanceof TFile && file.extension === "md") {
+      console.log(`[Delete Event] ${file.path}`);
+      this.graphDB.removeNote(file.path);
+      this.vectorDB.deleteDocumentByPath(file.path);
+
+      await this.saveGraphDatabase();
+      await this.saveVectorDatabase();
+    }
+  }
+
+  private onLayoutReadyInitializeGraph = () => {
+    if (this.graphDB.graph.order === 0) {
+      console.log("[Layout Ready] Initializing graph population...");
+      this.graphDB.populateGraph();
+      this.saveGraphDatabase();
+    }
+  }
+
   async onload() {
     await this.loadSettings();
     await this.loadVectorDatabase();
-    await this.loadGraphData();
+    await this.loadGraphDatabase();
 
     const geminiSecret = await this.app.secretStorage.getSecret("gemini");
     modelManager.updateApiKey(geminiSecret)
@@ -102,69 +153,9 @@ export default class NotesOrganizerPlugin extends Plugin {
     // Add the setting tab
     this.addSettingTab(new SettingTab(this.app, this));
 
-    // 1. Rename event: Update graphology node in-place
-    this.registerEvent(
-      this.app.vault.on("rename", async (file, oldPath) => {
-        if (file instanceof TFile && file.extension === "md") {
-          console.log(`[Rename Event] ${oldPath} -> ${file.path}`);
-
-          // Update vector DB
-          await this.fileUpdate(file, this.vectorDB, oldPath);
-
-          // Update node key in Graphology rather than clearing the graph
-          this.graphDB.renameNote(oldPath, file.path);
-          await this.saveGraphDatabase();
-        }
-      })
-    )
-
-    // 2. Modify event: Update single file vector store
-    this.registerEvent(
-      this.app.vault.on("modify", async (file) => {
-        if (this.isWorkflowRunning) return;
-
-        // Only register it when the file is being organized into a folder
-        if (file instanceof TFile && file.extension === "md" && file.parent?.name !== "") {
-          console.log(`[Modify Event] ${file.path}`);
-          await this.fileUpdate(file, this.vectorDB, file.path);
-        }
-      })
-    );
-
-    // 3. Changed links event: Update links for the single changed file
-    this.registerEvent(
-      this.app.metadataCache.on("changed", (file, data, cache) => {
-        if (this.isWorkflowRunning) return;
-
-        console.log(`[Metadata Changed] ${file.path}`);
-        // Update graph links for this specific file only
-        this.graphDB.updateGraph(file, cache);
-        this.saveGraphDatabase();
-      })
-    );
-
-    // 4. Delete event
-    this.registerEvent(
-      this.app.vault.on("delete", async (file) => {
-        if (file instanceof TFile && file.extension === "md") {
-          console.log(`[Delete Event] ${file.path}`);
-          this.graphDB.removeNote(file.path);
-          this.vectorDB.deleteDocumentByPath(file.path);
-
-          await this.saveGraphDatabase();
-          await this.saveVectorDatabase();
-        }
-      })
-    );
-
-    // Initial population when Obsidian layout loads
-    this.app.workspace.onLayoutReady(() => {
-      if (this.graphDB.graph.order === 0) {
-        console.log("[Layout Ready] Initializing graph population...");
-        this.graphDB.populateGraph();
-        this.saveGraphDatabase();
-      }
-    });
+    // Register the events and get the graph loaded once the layout has been loaded
+    this.registerVaultAndMetadataEvents();
+    this.registerLayoutReadyInitialization();
 
     // UI Views and Ribbon Icons
     this.registerView(
@@ -292,87 +283,5 @@ export default class NotesOrganizerPlugin extends Plugin {
     this.isWorkflowRunning = false
 
     this.graphDB.populateGraph()
-  }
-}
-
-export const VIEW_TYPE_EXAMPLE = 'example-view';
-
-export class PluginView extends ItemView {
-  component: Record<string, any> | undefined;
-  organizeButtonCallback;
-  queryButtonCallback: (query: string) => Promise<string>;
-  newNoteButtonCallback;
-  printGraphNodes;
-  printMemoryStores;
-  inputValue: string = ''
-  app: App
-
-  constructor(leaf: WorkspaceLeaf,
-    organizeButtonCallback: any,
-    queryButtonCallback: (query: string) => Promise<string>,
-    newNoteButtonCallback: any,
-    printGraphNodes: any,
-    printMemoryStores: any,
-    app: App) {
-    super(leaf);
-    this.organizeButtonCallback = organizeButtonCallback
-    this.queryButtonCallback = queryButtonCallback
-    this.newNoteButtonCallback = newNoteButtonCallback
-    this.printGraphNodes = printGraphNodes
-    this.printMemoryStores = printMemoryStores
-    this.app = app
-  }
-
-  getViewType() {
-    return VIEW_TYPE_EXAMPLE;
-  }
-
-  getDisplayText() {
-    return 'Plugin view';
-  }
-
-  async onOpen() {
-    this.component = mount(Counter, {
-      target: this.contentEl,
-      props: {
-        app: this.app,
-        organizeButtonCallback: this.organizeButtonCallback,
-        queryButtonCallback: this.queryButtonCallback,
-        newNoteButtonCallback: this.newNoteButtonCallback,
-        printGraphNodes: this.printGraphNodes,
-        printMemoryStores: this.printMemoryStores
-      },
-    });
-  }
-
-  async onClose() {
-    if (this.component) {
-      unmount(this.component);
-    }
-  }
-}
-
-class SettingTab extends PluginSettingTab {
-  plugin: NotesOrganizerPlugin;
-
-  constructor(app: App, plugin: NotesOrganizerPlugin) {
-    super(app, plugin);
-    this.plugin = plugin;
-  }
-
-  display(): void {
-    const { containerEl } = this;
-
-    containerEl.empty();
-
-    new Setting(containerEl)
-      .setName('Gemini API key')
-      .setDesc('API Key for your own external model')
-      .addComponent(el => new SecretComponent(this.app, el)
-        .setValue(this.plugin.settings.geminiAPIKey)
-        .onChange(value => {
-          this.plugin.settings.geminiAPIKey = value;
-          this.plugin.saveSettings();
-        }));
   }
 }

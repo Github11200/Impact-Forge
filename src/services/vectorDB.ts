@@ -2,7 +2,7 @@ import { Notice, TFile } from "obsidian";
 import { MemoryVectorStore } from "@langchain/classic/vectorstores/memory";
 import { OllamaEmbeddings } from "@langchain/ollama";
 import { Document } from "langchain";
-import type { QueryResult } from "./types";
+import type { QueryResult } from "../types";
 
 export default class VectorDB {
   vectorStore: MemoryVectorStore | undefined

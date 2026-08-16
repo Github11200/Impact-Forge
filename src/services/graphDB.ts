@@ -5,6 +5,9 @@ export default class NotesGraph {
   graph: Graph
   app: App
 
+  TAGS_FOLDER_NAME = '4 - Tags'
+  TEMPLATES_FOLDER_NAME = '5 - Templates'
+
   constructor(app: App) {
     this.app = app
     this.graph = new Graph({ multi: false })
@@ -54,7 +57,9 @@ export default class NotesGraph {
 
   getNeighbours(path: string): TFile[] {
     const neighborKeys = this.graph.neighbors(path)
-    const paths = neighborKeys.map(key => this.graph.getNodeAttribute(key, 'path')).filter((path: string) => !path.contains("4 - Tags"));
+    const paths = neighborKeys
+      .map(key => this.graph.getNodeAttribute(key, 'path'))
+      .filter((path: string) => !path.contains(this.TAGS_FOLDER_NAME));
     const files = paths.map(path => this.app.vault.getAbstractFileByPath(path) as TFile)
 
     return files
@@ -71,7 +76,7 @@ export default class NotesGraph {
 
   updateGraph(file: TFile, cache: CachedMetadata) {
     // Exclude ignored folders
-    if (file.parent?.name === "4 - Tags" || file.parent?.name === "5 - Templates") return;
+    if (file.parent?.name === this.TAGS_FOLDER_NAME || file.parent?.name === this.TEMPLATES_FOLDER_NAME) return;
 
     // Remove the node so all the edges are dropped
     if (this.graph.hasNode(file.path))
@@ -124,14 +129,14 @@ export default class NotesGraph {
       name: newBasename
     });
 
-    // Restore incoming edges (other nodes -> this file)
+    // Restore incoming edges
     for (const source of inNeighbors) {
       if (this.graph.hasNode(source) && !this.graph.hasEdge(source, newPath)) {
         this.graph.addEdge(source, newPath);
       }
     }
 
-    // Restore outgoing edges (this file -> other nodes)
+    // Restore outgoing edges
     for (const target of outNeighbors) {
       if (this.graph.hasNode(target) && !this.graph.hasEdge(newPath, target)) {
         this.graph.addEdge(newPath, target);

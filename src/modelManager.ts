@@ -12,7 +12,6 @@ export class ModelManager {
 
   public getModelAndResponseFormat(temperature: number, type: ZodObject, ollamaModelName?: string): { model: ChatGoogleGenerativeAI | ChatOllama, responseFormat: ResponseFormat } {
     if (this.geminiApiKey) {
-      console.log("using gemini :)")
       return {
         model: new ChatGoogleGenerativeAI({
           apiKey: this.geminiApiKey,

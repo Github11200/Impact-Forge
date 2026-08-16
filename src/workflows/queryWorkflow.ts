@@ -1,6 +1,6 @@
 import { Notice, TFile, type App } from "obsidian";
-import type VectorDB from "../vectorDB";
-import type NotesGraph from "../graphDB";
+import type VectorDB from "../services/vectorDB";
+import type NotesGraph from "../services/graphDB";
 import type { QueryResult } from "../types";
 import { getQueryAgent } from "../agents/queryAgent";
 
