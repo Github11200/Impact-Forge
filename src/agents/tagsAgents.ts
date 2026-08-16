@@ -1,7 +1,7 @@
 import { createAgent, providerStrategy, toolStrategy, type ResponseFormat } from "langchain";
-import { NoteTags } from "../types";
+import { NoteTags } from "../lib/types";
 import { ChatOllama } from "@langchain/ollama";
-import { modelManager } from "../modelManager";
+import { modelManager } from "../lib/modelManager";
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 
 const systemPrompt = `You are an expert Zettelkasten tagging assistant for an Obsidian vault.

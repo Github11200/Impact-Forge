@@ -1,6 +1,6 @@
 import { createAgent, providerStrategy } from "langchain";
-import { NoteReferences, UserQueryResultSchema } from "../types";
-import { modelManager } from "../modelManager";
+import { NoteReferences, UserQueryResultSchema } from "../lib/types";
+import { modelManager } from "../lib/modelManager";
 
 const systemPrompt = `You are an expert research assistant for an Obsidian Zettelkasten vault. Your task is to answer my queries comprehensively and accurately using ONLY the provided context notes retrieved from my graph database.
 

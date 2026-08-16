@@ -2,8 +2,8 @@ import { Notice, TFile, type App } from "obsidian";
 import type VectorDB from "../services/vectorDB";
 import type NotesGraph from "../services/graphDB";
 import type { QueryResult } from "../types";
-import { getQueryAgent } from "../agents/queryAgent";
-import MarkdownContentMutator from "./markdownContentMutator";
+import { getQueryAgent } from "../../agents/queryAgent";
+import MarkdownContentMutator from "../utils/markdownContentMutator";
 
 export default class QueryWorkflow {
   vectorDB: VectorDB

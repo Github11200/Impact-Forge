@@ -1,7 +1,7 @@
 import { createAgent, providerStrategy } from "langchain";
-import { NoteType } from "../types";
+import { NoteType } from "../lib/types";
 import { ChatOllama } from "@langchain/ollama";
-import { modelManager } from "../modelManager";
+import { modelManager } from "../lib/modelManager";
 
 const systemPrompt = `You are a strict note classification agent. Classify the input note into exactly one of three categories based on these definitions:
 

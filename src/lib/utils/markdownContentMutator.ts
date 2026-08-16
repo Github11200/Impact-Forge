@@ -23,9 +23,9 @@ export default class MarkdownContentMutator {
     const formattedTags = tags.map((tag) => `[[${tag}]]`).join(" ");
     const tagsHeaderRegex = /^Tags:[ \t]*/im;
 
-    if (tagsHeaderRegex.test(content)) {
+    // Find the "Tags: " and then insert the tags right after that
+    if (tagsHeaderRegex.test(content))
       return content.replace(tagsHeaderRegex, `Tags: ${formattedTags}`);
-    }
 
     return `Tags: ${formattedTags}\n\n${content}`;
   }
@@ -34,6 +34,7 @@ export default class MarkdownContentMutator {
     const formattedReferences = this.formatWikilinkList(references);
     const referencesHeadingRegex = /^# References[ \t]*/im;
 
+    // Find the "# References" in the file and replace it with the newly added references
     if (referencesHeadingRegex.test(content)) {
       return content.replace(
         referencesHeadingRegex,

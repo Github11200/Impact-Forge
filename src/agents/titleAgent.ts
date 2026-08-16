@@ -1,7 +1,7 @@
 import { createAgent, providerStrategy } from "langchain";
-import { NoteTitle } from "../types"; // Schema defining the output structure, e.g., { title: string }
+import { NoteTitle } from "../lib/types"; // Schema defining the output structure, e.g., { title: string }
 import { ChatOllama } from "@langchain/ollama";
-import { modelManager } from "../modelManager";
+import { modelManager } from "../lib/modelManager";
 
 const systemPrompt = `You are a Zettelkasten titling agent. Your job is to create a clear, concise, and declarative title for an atomic note based on its content.
 

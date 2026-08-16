@@ -8,12 +8,12 @@ import {
 import type { CachedMetadata } from 'obsidian';
 
 import { WorkspaceLeaf } from 'obsidian';
-import OrganizationWorkflow from './workflows/organizationWorkflow';
-import VectorDB from './services/vectorDB';
-import NotesGraph from './services/graphDB';
-import QueryWorkflow from './workflows/queryWorkflow';
-import { modelManager } from './modelManager';
-import type { PluginSettings } from './types';
+import OrganizationWorkflow from './lib/workflows/organizationWorkflow';
+import VectorDB from './lib/services/vectorDB';
+import NotesGraph from './lib/services/graphDB';
+import QueryWorkflow from './lib/workflows/queryWorkflow';
+import { modelManager } from './lib/modelManager';
+import type { PluginSettings } from './lib/types';
 import { SettingTab } from './ui/settingTab';
 import { PluginView, VIEW_TYPE_EXAMPLE } from './ui/pluginView';
 

@@ -1,7 +1,7 @@
 import { createAgent, providerStrategy } from "langchain";
-import { NoteReferences } from "../types";
+import { NoteReferences } from "../lib/types";
 import { ChatOllama } from "@langchain/ollama";
-import { modelManager } from "../modelManager";
+import { modelManager } from "../lib/modelManager";
 
 const systemPrompt = `You are an expert Zettelkasten assistant for an Obsidian vault.
 Your job is to analyze a new note alongside a set of relevant existing notes and determine which existing notes should be linked as references.

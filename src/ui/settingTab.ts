@@ -1,5 +1,5 @@
 import { App, PluginSettingTab, SecretComponent, Setting, type Plugin } from 'obsidian';
-import type { PluginSettings } from '../types';
+import type { PluginSettings } from '../lib/types';
 
 interface SettingsHost {
   settings: PluginSettings;
