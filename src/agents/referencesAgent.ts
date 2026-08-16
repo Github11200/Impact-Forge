@@ -1,6 +1,7 @@
 import { createAgent, providerStrategy } from "langchain";
 import { NoteReferences } from "../types";
 import { ChatOllama } from "@langchain/ollama";
+import { modelManager } from "../modelManager";
 
 const systemPrompt = `You are an expert Zettelkasten assistant for an Obsidian vault.
 Your job is to analyze a new note alongside a set of relevant existing notes and determine which existing notes should be linked as references.
@@ -13,11 +14,7 @@ Rules:
 
 
 export const referencesAgent = createAgent({
-  model: new ChatOllama({
-    model: "qwen3:4b",
-    temperature: 0.1,
-    format: NoteReferences.toJSONSchema()
-  }),
+  model: modelManager.getModel(0.1, "qwen3:4b"),
   name: "References Agent",
   description: "An agent that decides what other notes to interlink to.",
   systemPrompt: systemPrompt,

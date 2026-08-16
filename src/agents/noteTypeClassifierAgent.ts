@@ -1,6 +1,7 @@
-import { createAgent } from "langchain";
+import { createAgent, providerStrategy } from "langchain";
 import { NoteType } from "../types";
 import { ChatOllama } from "@langchain/ollama";
+import { modelManager } from "../modelManager";
 
 const systemPrompt = `You are a strict note classification agent. Classify the input note into exactly one of three categories based on these definitions:
 
@@ -21,13 +22,9 @@ Output: {"noteType": "polished-note"}
 Return only valid JSON matching the requested format.`
 
 export const noteTypeClassifierAgent = createAgent({
-  model: new ChatOllama({
-    model: "qwen3:1.7b",
-    temperature: 0.1,
-    format: "json"
-  }),
+  model: modelManager.getModel(0.1, "qwen3:1.7b"),
   name: "Atomic Notes Agent",
   description: "An agent that takes a note and splits it into atomic notes.",
   systemPrompt: systemPrompt,
-  responseFormat: NoteType
+  responseFormat: providerStrategy(NoteType)
 })

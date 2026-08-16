@@ -2,11 +2,11 @@ import { App, PluginSettingTab, Setting } from 'obsidian';
 import NotesOrganizerPlugin from './main';
 
 export interface MyPluginSettings {
-  mySetting: string;
+  geminiAPIKey: string;
 }
 
 export const DEFAULT_SETTINGS: MyPluginSettings = {
-  mySetting: 'default',
+  geminiAPIKey: 'default',
 };
 
 export class SampleSettingTab extends PluginSettingTab {
@@ -28,9 +28,9 @@ export class SampleSettingTab extends PluginSettingTab {
       .addText((text) =>
         text
           .setPlaceholder('Enter your secret')
-          .setValue(this.plugin.settings.mySetting)
+          .setValue(this.plugin.settings.geminiAPIKey)
           .onChange(async (value) => {
-            this.plugin.settings.mySetting = value;
+            this.plugin.settings.geminiAPIKey = value;
             await this.plugin.saveSettings();
           }),
       );

@@ -7,11 +7,13 @@ import {
   TFile,
   Component,
   MarkdownRenderer,
+  PluginSettingTab,
+  SecretComponent,
+  Setting,
 } from 'obsidian';
 import {
   DEFAULT_SETTINGS,
   type MyPluginSettings,
-  SampleSettingTab,
 } from './settings';
 
 import { ItemView, WorkspaceLeaf } from 'obsidian';
@@ -23,8 +25,7 @@ import OrganizationWorkflow from './workflows/organizationWorkflow';
 import VectorDB from './vectorDB';
 import NotesGraph from './graphDB';
 import QueryWorkflow from './workflows/queryWorkflow';
-
-// Remember to rename these classes and interfaces!
+import { modelManager } from './modelManager';
 
 export default class NotesOrganizerPlugin extends Plugin {
   settings!: MyPluginSettings;
@@ -94,6 +95,12 @@ export default class NotesOrganizerPlugin extends Plugin {
     await this.loadSettings();
     await this.loadVectorDatabase();
     await this.loadGraphData();
+
+    const geminiSecret = await this.app.secretStorage.getSecret("gemini");
+    modelManager.updateApiKey(geminiSecret)
+
+    // Add the setting tab
+    this.addSettingTab(new SampleSettingTab(this.app, this));
 
     // 1. Rename event: Update graphology node in-place
     this.registerEvent(
@@ -342,5 +349,30 @@ export class PluginView extends ItemView {
     if (this.component) {
       unmount(this.component);
     }
+  }
+}
+
+class SampleSettingTab extends PluginSettingTab {
+  plugin: NotesOrganizerPlugin;
+
+  constructor(app: App, plugin: NotesOrganizerPlugin) {
+    super(app, plugin);
+    this.plugin = plugin;
+  }
+
+  display(): void {
+    const { containerEl } = this;
+
+    containerEl.empty();
+
+    new Setting(containerEl)
+      .setName('Gemini API key')
+      .setDesc('API Key for your own external model')
+      .addComponent(el => new SecretComponent(this.app, el)
+        .setValue(this.plugin.settings.geminiAPIKey)
+        .onChange(value => {
+          this.plugin.settings.geminiAPIKey = value;
+          this.plugin.saveSettings();
+        }));
   }
 }

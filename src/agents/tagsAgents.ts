@@ -1,6 +1,7 @@
 import { createAgent, providerStrategy } from "langchain";
 import { NoteTags } from "../types";
 import { ChatOllama } from "@langchain/ollama";
+import { modelManager } from "../modelManager";
 
 const systemPrompt = `You are an expert Zettelkasten tagging assistant for an Obsidian vault.
 Your goal is to evaluate a note, extract key topics, and output 2 to 4 conceptual tags.
@@ -32,11 +33,7 @@ Output: {
 `;
 
 export const tagsAgent = createAgent({
-  model: new ChatOllama({
-    model: "qwen3:1.7b",
-    temperature: 0.1,
-    format: NoteTags.toJSONSchema()
-  }),
+  model: modelManager.getModel(0.1, "qwen3:1.7b"),
   name: "Tags Agent",
   description: "An agent that assigns tags to a note.",
   systemPrompt: systemPrompt,

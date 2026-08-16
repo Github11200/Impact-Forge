@@ -1,6 +1,7 @@
 import { createAgent, providerStrategy } from "langchain";
 import { NoteReferences, UserQueryResultSchema } from "../types";
 import { ChatOllama } from "@langchain/ollama";
+import { modelManager } from "../modelManager";
 
 const systemPrompt = `You are an expert research assistant for an Obsidian Zettelkasten vault. Your task is to answer the user's query comprehensively and accurately using ONLY the provided context notes retrieved from the user's graph database.
 
@@ -17,11 +18,7 @@ Ensure your response strictly fills the JSON schema fields:
 
 
 export const queryAgent = createAgent({
-  model: new ChatOllama({
-    model: "qwen3:4b",
-    temperature: 0.1,
-    format: UserQueryResultSchema.toJSONSchema()
-  }),
+  model: modelManager.getModel(0.1, "qwen3:4b"),
   name: "Query Agent",
   description: "An agent that answers queries about the notes database.",
   systemPrompt: systemPrompt,

@@ -15,3 +15,13 @@ export const UserQueryResultSchema = z.object({
 });
 
 export type QueryResult = { score: number, text: string, metadata: Record<string, any> }[]
+
+export interface PluginSettings {
+  geminiAPIKey: string;
+}
+
+export interface ModelConfig {
+  geminiApiKey?: string;
+  ollamaModelName?: string;
+  temperature: number;
+}

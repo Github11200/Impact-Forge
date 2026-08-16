@@ -1,6 +1,7 @@
-import { createAgent } from "langchain";
+import { createAgent, providerStrategy } from "langchain";
 import { NoteTitle } from "../types"; // Schema defining the output structure, e.g., { title: string }
 import { ChatOllama } from "@langchain/ollama";
+import { modelManager } from "../modelManager";
 
 const systemPrompt = `You are a Zettelkasten titling agent. Your job is to create a clear, concise, and declarative title for an atomic note based on its content.
 
@@ -22,13 +23,9 @@ Output: {"title": "Three Distinct Note Types - Fleeting Literature Permanent"}
 Return only valid JSON matching the requested format.`;
 
 export const noteTitleAgent = createAgent({
-  model: new ChatOllama({
-    model: "qwen3:1.7b",
-    temperature: 0.2,
-    format: "json",
-  }),
+  model: modelManager.getModel(0.2, "qwen3:1.7b"),
   name: "Note Title Agent",
   description: "An agent that generates a concise, declarative Zettelkasten title for a given note.",
   systemPrompt: systemPrompt,
-  responseFormat: NoteTitle,
+  responseFormat: providerStrategy(NoteTitle),
 });
