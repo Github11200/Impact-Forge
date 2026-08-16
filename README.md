@@ -50,7 +50,7 @@ You can also move notes around, update tag names, references, etc, and the Graph
 Here is a diagram showing the architecture and flow of the plugin:
 ![Architecture diagram](image.png)
 
-The code for both the workflows can be found in the [workflows folder](https://github.com/Github11200/Impact-Forge/tree/master/src/workflows).
+The code for both the workflows can be found in the [workflows folder](https://github.com/Github11200/Impact-Forge/tree/master/src/lib/workflows).
 
 ## Tech Stack
 
