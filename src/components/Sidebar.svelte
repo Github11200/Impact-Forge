@@ -2,6 +2,8 @@
 	let {
 		organizeButtonCallback,
 		queryButtonCallback,
+		printGraphNodes,
+		printMemoryStores,
 		value = $bindable(''),
 	} = $props();
 </script>
@@ -28,6 +30,9 @@
 			}}>Submit</button
 		>
 	</label>
+
+	<button onclick={printGraphNodes}>Print Graph Nodes</button>
+	<button onclick={printMemoryStores}>Print Memory Stores</button>
 </div>
 
 <style>

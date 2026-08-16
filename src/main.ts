@@ -30,6 +30,14 @@ export default class NotesOrganizerPlugin extends Plugin {
   graphDB = new NotesGraph(this.app)
   isWorkflowRunning: boolean = false
 
+  printGraphNodes = () => {
+    this.graphDB.printNodes()
+  }
+
+  printMemoryStores = () => {
+    console.log(this.vectorDB.vectorStore?.memoryVectors)
+  }
+
   // Load the data from the JSON file into the vector database to be queried
   async loadVectorDatabase() {
     await this.vectorDB.initializeDatabase();
@@ -84,56 +92,78 @@ export default class NotesOrganizerPlugin extends Plugin {
     await this.loadVectorDatabase();
     await this.loadGraphData();
 
-    this.app.vault.on("rename", (file, oldPath) => {
-      // If the workflow is running then we don't want to change anything in the vector store
-      if (!this.isWorkflowRunning)
-        this.fileUpdate(file, this.vectorDB, oldPath)
-    })
-    this.app.vault.on("modify", (file) => {
-      if (!this.isWorkflowRunning)
-        this.fileUpdate(file, this.vectorDB, file.path)
-    })
-    this.app.vault.on("delete", (file) => {
-      if (file instanceof TFile)
-        this.graphDB.removeNote(file.path)
-    })
+    // 1. Rename event: Update graphology node in-place
+    this.registerEvent(
+      this.app.vault.on("rename", async (file, oldPath) => {
+        if (file instanceof TFile && file.extension === "md") {
+          console.log(`[Rename Event] ${oldPath} -> ${file.path}`);
 
-    // Populate the graph if it has 0 nodes
+          // Update vector DB
+          await this.fileUpdate(file, this.vectorDB, oldPath);
+
+          // Update node key in Graphology rather than clearing the graph
+          this.graphDB.renameNote(oldPath, file.path);
+          await this.saveGraphDatabase();
+        }
+      })
+    )
+
+    // 2. Modify event: Update single file vector store
+    this.registerEvent(
+      this.app.vault.on("modify", async (file) => {
+        if (this.isWorkflowRunning) return;
+
+        if (file instanceof TFile && file.extension === "md") {
+          console.log(`[Modify Event] ${file.path}`);
+          await this.fileUpdate(file, this.vectorDB, file.path);
+        }
+      })
+    );
+
+    // 3. Changed links event: Update links for the single changed file
+    this.registerEvent(
+      this.app.metadataCache.on("changed", (file, data, cache) => {
+        if (this.isWorkflowRunning) return;
+
+        console.log(`[Metadata Changed] ${file.path}`);
+        // Update graph links for this specific file only
+        this.graphDB.updateGraph(file, cache);
+        this.saveGraphDatabase();
+      })
+    );
+
+    // 4. Delete event
+    this.registerEvent(
+      this.app.vault.on("delete", async (file) => {
+        if (file instanceof TFile && file.extension === "md") {
+          console.log(`[Delete Event] ${file.path}`);
+          this.graphDB.removeNote(file.path);
+          this.vectorDB.deleteDocumentByPath(file.path);
+
+          await this.saveGraphDatabase();
+          await this.saveVectorDatabase();
+        }
+      })
+    );
+
+    // Initial population when Obsidian layout loads
     this.app.workspace.onLayoutReady(() => {
-      if (this.graphDB.graph.order !== 0) return
+      if (this.graphDB.graph.order === 0) {
+        console.log("[Layout Ready] Initializing graph population...");
+        this.graphDB.populateGraph();
+        this.saveGraphDatabase();
+      }
+    });
 
-      this.graphDB.populateGraph()
-      this.saveGraphDatabase()
-    })
-
-    // If the links in a file are changed then update the graph
-    this.app.metadataCache.on("changed", (file, _, cache) => {
-      // If the file that was changed was a file for a tag then ignore it
-      this.graphDB.updateGraph(file, cache)
-      this.saveGraphDatabase()
-    })
-
-    // Register the view
+    // UI Views and Ribbon Icons
     this.registerView(
       VIEW_TYPE_EXAMPLE,
-      (leaf) => new PluginView(leaf, this.organizeButtonCallback, this.queryButtonCallback)
+      (leaf) => new PluginView(leaf, this.organizeButtonCallback, this.queryButtonCallback, this.printGraphNodes, this.printMemoryStores)
     );
 
     this.addRibbonIcon('dice', 'Activate view', () => {
       this.activateView();
     });
-
-    // This adds a status bar item to the bottom of the app. Does not work on mobile apps.
-    const statusBarItemEl = this.addStatusBarItem();
-    statusBarItemEl.setText('Status bar text');
-
-    // This adds a settings tab so the user can configure various aspects of the plugin
-    this.addSettingTab(new SampleSettingTab(this.app, this));
-
-    // When registering intervals, this function will automatically clear the interval when the plugin is disabled.
-    this.registerInterval(
-      window.setInterval(() => console.log('setInterval'), 5 * 60 * 1000),
-    );
   }
 
   onunload() { }
@@ -186,8 +216,9 @@ export default class NotesOrganizerPlugin extends Plugin {
   queryButtonCallback = async (query: string) => {
     const queryWorkflow = new QueryWorkflow(this.app, this.vectorDB, this.graphDB)
 
-    console.log(this.graphDB.graph.nodes());
-    queryWorkflow.run(query)
+    const queryResult = await queryWorkflow.run(query)
+    console.log("DONE")
+    console.log(queryResult)
   }
 
   organizeButtonCallback = async () => {
@@ -206,13 +237,13 @@ export default class NotesOrganizerPlugin extends Plugin {
       return
     }
     else {
-      await this.vectorDB.addDocument(updatedFile, content)
-      new Notice("Added document to the vector database")
       await this.saveVectorDatabase()
       new Notice("Saved the vector database")
     }
 
     this.isWorkflowRunning = false
+
+    this.graphDB.populateGraph()
   }
 }
 
@@ -222,12 +253,16 @@ export class PluginView extends ItemView {
   component: Record<string, any> | undefined;
   organizeButtonCallback;
   queryButtonCallback;
+  printGraphNodes;
+  printMemoryStores;
   inputValue: string = ''
 
-  constructor(leaf: WorkspaceLeaf, organizeButtonCallback: any, queryButtonCallback: any) {
+  constructor(leaf: WorkspaceLeaf, organizeButtonCallback: any, queryButtonCallback: any, printGraphNodes: any, printMemoryStores: any) {
     super(leaf);
     this.organizeButtonCallback = organizeButtonCallback
     this.queryButtonCallback = queryButtonCallback
+    this.printGraphNodes = printGraphNodes
+    this.printMemoryStores = printMemoryStores
   }
 
   getViewType() {
@@ -244,6 +279,8 @@ export class PluginView extends ItemView {
       props: {
         organizeButtonCallback: this.organizeButtonCallback,
         queryButtonCallback: this.queryButtonCallback,
+        printGraphNodes: this.printGraphNodes,
+        printMemoryStores: this.printMemoryStores
       },
     });
   }

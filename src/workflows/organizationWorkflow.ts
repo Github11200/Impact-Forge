@@ -94,6 +94,11 @@ export default class OrganizationWorkflow {
 
     try {
       await this.app.fileManager.renameFile(this.file, newPath);
+
+      const updatedFile = this.app.vault.getAbstractFileByPath(newPath);
+      if (updatedFile instanceof TFile) {
+        this.file = updatedFile;
+      }
     } catch (error) {
       console.error("Failed to rename file:", error);
       new Notice("Error updating note title");
