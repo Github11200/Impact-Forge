@@ -61,15 +61,15 @@
 <div id="container">
 	<button onclick={newNoteButtonCallback}>Create New Note</button>
 	<button onclick={organizeButtonCallback}>Organize Note</button>
-	<button onclick={printGraphNodes}>Print Graph Nodes</button>
-	<button onclick={printMemoryStores}>Print Memory Stores</button>
+	<!-- <button onclick={printGraphNodes}>Print Graph Nodes</button>
+	<button onclick={printMemoryStores}>Print Memory Stores</button> -->
 
 	<label>
 		Enter your query:
 		<textarea
 			bind:value
 			placeholder="Query here..."
-			rows={4}
+			rows={8}
 			onkeydown={(e) => {
 				if (e.key === 'Enter' && !e.shiftKey) {
 					e.preventDefault();

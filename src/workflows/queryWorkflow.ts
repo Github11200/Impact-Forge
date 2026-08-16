@@ -87,7 +87,7 @@ If the context does not contain enough information to answer, state clearly that
     let answer = tagsAgentResult.structuredResponse.answer
     const references = tagsAgentResult.structuredResponse.references
 
-    answer += "\n\n" + "References:\n" + references.map(reference => `- ${reference}\n`)
+    answer += "\n\nReferences:\n" + references.map(reference => `- [[${reference}]]`).join("\n");
 
     return answer;
   }
