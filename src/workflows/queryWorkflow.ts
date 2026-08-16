@@ -74,8 +74,6 @@ If the context does not contain enough information to answer, state clearly that
 
     const prompt = await this.createPrompt(notes, query)
 
-    console.log(prompt)
-
     // 5. Send to LLM
     const tagsAgentResult = await queryAgent.invoke({
       messages: [
@@ -86,8 +84,11 @@ If the context does not contain enough information to answer, state clearly that
       ]
     });
 
-    console.log(tagsAgentResult)
+    let answer = tagsAgentResult.structuredResponse.answer
+    const references = tagsAgentResult.structuredResponse.references
 
-    return tagsAgentResult.structuredResponse;
+    answer += "\n\n" + "References: " + references.map(reference => `[[${reference}]]`)
+
+    return answer;
   }
 }

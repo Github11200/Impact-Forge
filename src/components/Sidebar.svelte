@@ -1,38 +1,94 @@
 <script lang="ts">
+	import { Component, MarkdownRenderer } from 'obsidian';
+	import { tick } from 'svelte';
+
 	let {
+		app,
 		organizeButtonCallback,
 		queryButtonCallback,
 		printGraphNodes,
 		printMemoryStores,
 		value = $bindable(''),
 	} = $props();
+
+	let queryResult = $state('');
+	let resultContainer: HTMLElement;
+	let component = new Component();
+
+	async function handleQuery() {
+		queryResult = 'Processing...';
+
+		const response = await queryButtonCallback(value);
+		queryResult = response;
+
+		await tick();
+
+		if (resultContainer) {
+			resultContainer.empty();
+			component.load();
+			MarkdownRenderer.render(
+				app,
+				queryResult,
+				resultContainer,
+				'',
+				component,
+			);
+		}
+	}
+
+	function handleClear() {
+		queryResult = '';
+		resultContainer.empty();
+	}
+
+	function handleLinkClick(event: MouseEvent) {
+		const target = event.target as HTMLElement;
+		if (target.classList.contains('internal-link')) {
+			event.preventDefault();
+			const linkPath =
+				target.getAttribute('data-href') || target.innerText;
+			if (linkPath) {
+				app.workspace.openLinkText(linkPath, '', false);
+			}
+		}
+	}
 </script>
 
 <div id="container">
 	<button onclick={organizeButtonCallback}>Organize</button>
+	<button onclick={printGraphNodes}>Print Graph Nodes</button>
+	<button onclick={printMemoryStores}>Print Memory Stores</button>
 
 	<label>
-		Enter your question:
+		Enter your query:
 		<textarea
 			bind:value
-			placeholder="Question here..."
+			placeholder="Query here..."
 			rows={4}
 			onkeydown={(e) => {
 				if (e.key === 'Enter' && !e.shiftKey) {
 					e.preventDefault();
-					queryButtonCallback(value);
+					handleQuery();
 				}
 			}}
 		></textarea>
 		<button
 			onclick={() => {
-				queryButtonCallback(value);
+				handleQuery();
 			}}>Submit</button
 		>
 	</label>
 
-	<button onclick={printGraphNodes}>Print Graph Nodes</button>
-	<button onclick={printMemoryStores}>Print Memory Stores</button>
+	{#if queryResult !== ''}
+		<div>
+			<div
+				bind:this={resultContainer}
+				onclick={handleLinkClick}
+				class="markdown-preview-view"
+			></div>
+			<button onclick={handleClear}>Clear</button>
+		</div>
+	{/if}
 </div>
 
 <style>

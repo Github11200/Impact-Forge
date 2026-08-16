@@ -73,12 +73,10 @@ export default class NotesGraph {
     // Exclude ignored folders
     if (file.parent?.name === "4 - Tags" || file.parent?.name === "5 - Templates") return;
 
-    // Ensure the node exists
-    if (!this.graph.hasNode(file.path))
-      this.addNote(file);
-
-    // Clear outgoing edges for this node to handle deleted links
-    this.graph.dropEdge(file.path);
+    // Remove the node so all the edges are dropped
+    if (this.graph.hasNode(file.path))
+      this.removeNote(file.path)
+    this.addNote(this.app.vault.getAbstractFileByPath(file.path) as TFile)
 
     if (!cache?.links) return;
 
@@ -91,9 +89,9 @@ export default class NotesGraph {
 
       if (targetFile) {
         // Ensure the target node exists before making an edge
-        if (!this.graph.hasNode(targetFile.path)) {
+        if (!this.graph.hasNode(targetFile.path))
           this.addNote(targetFile);
-        }
+        console.log(`Connecting ${file.path} and ${targetFile.path}`)
         this.connectNotes(file.path, targetFile.path);
       }
     }
@@ -140,35 +138,6 @@ export default class NotesGraph {
       }
     }
   }
-
-  // updateGraph(file: TFile, cache: CachedMetadata) {
-  //   // If the current node doesn't exist then add it
-  //   if (!this.graph.hasNode(file.path))
-  //     this.addNote(file)
-
-  //   if (!cache.links || file.parent?.name === "4 - Tags") return;
-
-  //   // Resolve raw string links to target TFiles
-  //   const resolvedLinks: string[] = [];
-
-  //   // Get all the outgoing links from the current file
-  //   for (const linkRef of cache.links) {
-  //     // Resolves "[[My Note]]" to its target TFile using the current file's path
-  //     const targetFile = this.app.metadataCache.getFirstLinkpathDest(
-  //       linkRef.link,
-  //       file.path
-  //     );
-
-  //     if (targetFile)
-  //       resolvedLinks.push(targetFile.path);
-  //   }
-
-  //   for (const link of resolvedLinks) {
-  //     const secondFile = this.app.vault.getAbstractFileByPath(link)
-  //     if (secondFile !== null && secondFile instanceof TFile)
-  //       this.connectNotes(file.path, secondFile.path)
-  //   }
-  // }
 
   populateGraph() {
     this.graph.clear()

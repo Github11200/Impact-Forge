@@ -9,6 +9,9 @@ export const NoteType = z.object({
 export const NoteTitle = z.object({ title: z.string() })
 export const NoteTags = z.object({ tags: z.array(z.string()) })
 export const NoteReferences = z.object({ references: z.array(z.string()) })
-export const UserQueryResult = z.string()
+export const UserQueryResultSchema = z.object({
+  answer: z.string().describe("The comprehensive answer to the user query"),
+  references: z.array(z.string()).describe("List of note titles referenced")
+});
 
 export type QueryResult = { score: number, text: string, metadata: Record<string, any> }[]

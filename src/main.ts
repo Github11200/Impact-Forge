@@ -5,6 +5,8 @@ import {
   App,
   TAbstractFile,
   TFile,
+  Component,
+  MarkdownRenderer,
 } from 'obsidian';
 import {
   DEFAULT_SETTINGS,
@@ -57,7 +59,7 @@ export default class NotesOrganizerPlugin extends Plugin {
     const data = (await this.loadData()) || {};
     data.vectorStoreData = jsonString;
 
-    await this.saveData(data);
+    await this.saveData(data)
   }
 
   async loadGraphData() {
@@ -84,7 +86,7 @@ export default class NotesOrganizerPlugin extends Plugin {
       await this.vectorDB.addDocument(file, content)
     }
 
-    this.saveVectorDatabase()
+    await this.saveVectorDatabase()
   }
 
   async onload() {
@@ -113,7 +115,8 @@ export default class NotesOrganizerPlugin extends Plugin {
       this.app.vault.on("modify", async (file) => {
         if (this.isWorkflowRunning) return;
 
-        if (file instanceof TFile && file.extension === "md") {
+        // Only register it when the file is being organized into a folder
+        if (file instanceof TFile && file.extension === "md" && file.parent?.name !== "") {
           console.log(`[Modify Event] ${file.path}`);
           await this.fileUpdate(file, this.vectorDB, file.path);
         }
@@ -158,7 +161,7 @@ export default class NotesOrganizerPlugin extends Plugin {
     // UI Views and Ribbon Icons
     this.registerView(
       VIEW_TYPE_EXAMPLE,
-      (leaf) => new PluginView(leaf, this.organizeButtonCallback, this.queryButtonCallback, this.printGraphNodes, this.printMemoryStores)
+      (leaf) => new PluginView(leaf, this.organizeButtonCallback, this.queryButtonCallback, this.printGraphNodes, this.printMemoryStores, this.app)
     );
 
     this.addRibbonIcon('dice', 'Activate view', () => {
@@ -213,12 +216,17 @@ export default class NotesOrganizerPlugin extends Plugin {
     return activeFile
   }
 
-  queryButtonCallback = async (query: string) => {
+  queryButtonCallback = async (query: string): Promise<string> => {
     const queryWorkflow = new QueryWorkflow(this.app, this.vectorDB, this.graphDB)
 
-    const queryResult = await queryWorkflow.run(query)
-    console.log("DONE")
-    console.log(queryResult)
+    const queryResult = undefined
+
+    if (queryResult === undefined) {
+      new Notice("Could not get a query result")
+      return "Error: Could not complete the query"
+    }
+
+    return queryResult
   }
 
   organizeButtonCallback = async () => {
@@ -252,17 +260,24 @@ export const VIEW_TYPE_EXAMPLE = 'example-view';
 export class PluginView extends ItemView {
   component: Record<string, any> | undefined;
   organizeButtonCallback;
-  queryButtonCallback;
+  queryButtonCallback: (query: string) => Promise<string>;
   printGraphNodes;
   printMemoryStores;
   inputValue: string = ''
+  app: App
 
-  constructor(leaf: WorkspaceLeaf, organizeButtonCallback: any, queryButtonCallback: any, printGraphNodes: any, printMemoryStores: any) {
+  constructor(leaf: WorkspaceLeaf,
+    organizeButtonCallback: any,
+    queryButtonCallback: (query: string) => Promise<string>,
+    printGraphNodes: any,
+    printMemoryStores: any,
+    app: App) {
     super(leaf);
     this.organizeButtonCallback = organizeButtonCallback
     this.queryButtonCallback = queryButtonCallback
     this.printGraphNodes = printGraphNodes
     this.printMemoryStores = printMemoryStores
+    this.app = app
   }
 
   getViewType() {
@@ -277,6 +292,7 @@ export class PluginView extends ItemView {
     this.component = mount(Counter, {
       target: this.contentEl,
       props: {
+        app: this.app,
         organizeButtonCallback: this.organizeButtonCallback,
         queryButtonCallback: this.queryButtonCallback,
         printGraphNodes: this.printGraphNodes,
@@ -291,3 +307,12 @@ export class PluginView extends ItemView {
     }
   }
 }
+
+/*
+
+"Associative links, as defined in [[3 - Full Notes/Associative Links Outperform Hierarchical Ones.md]], are bidirectional bridges created by Markdown WikiLinks (i.e., `[[Note Title]]`). These links connect atomic ideas to form an associative network, as opposed to hierarchical structures like standard URLs or folder paths. Unlike hierarchical approaches, associative links allow recurring link clusters to reveal emerging themes organically without requiring upfront folder organization."
+
+References:
+"3 - Full Notes/Associative Links Outperform Hierarchical Ones.md"
+
+*/
