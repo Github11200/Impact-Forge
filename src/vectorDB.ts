@@ -102,8 +102,4 @@ export default class VectorDB {
 
     await this.vectorStore?.addDocuments([document])
   }
-
-  async updateDocument() {
-    // TODO: Handle updates when the text or title updates
-  }
 }
