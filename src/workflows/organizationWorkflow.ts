@@ -235,20 +235,20 @@ export default class OrganizationWorkflow {
       messages: [
         {
           role: "human",
-          content: `Analyze the note content below and assign 2-4 tags covering both the main subject matter/tools discussed and the broader domain.
+          content: `Analyze the following note content and assign 2 to 4 tags.
 
-Note Content:
+### Note Content:
 """
 ${this.noteContent}
 """
 
-Existing Candidate Tags from Similar Notes:
-${candidateListFormatted}
+### Existing Candidate Tags (from related notes):
+${candidateListFormatted || "None"}
 
-Instructions:
-- Compare the core concepts of the note against the Existing Candidates list.
-- Use candidate tags where relevant.
-- CREATE NEW TAGS for key subjects or technologies (like AI, LLMs, or prompt-engineering) if they are missing from the candidates list.`
+### Instructions:
+1. Identify the primary subject matter and domain of the note.
+2. Match concepts against the Candidate Tags first.
+3. If a candidate tag fits a core topic, use it. Create new tags only when candidate tags do not cover a key topic.`
         }
       ]
     });
