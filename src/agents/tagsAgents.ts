@@ -1,40 +1,41 @@
-import { createAgent, providerStrategy } from "langchain";
+import { createAgent, providerStrategy, toolStrategy, type ResponseFormat } from "langchain";
 import { NoteTags } from "../types";
 import { ChatOllama } from "@langchain/ollama";
 import { modelManager } from "../modelManager";
+import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
 
 const systemPrompt = `You are an expert Zettelkasten tagging assistant for an Obsidian vault.
-Your goal is to evaluate a note, extract key topics, and output 2 to 4 conceptual tags.
+Your goal is to evaluate a note and output ONLY 1 or 2 high-level, broadly reusable tags.
 
-### Decision Workflow:
-1. Extract 2-4 core concepts (domains, tools, concepts) from the note content.
-2. For each concept:
-   - Check if an "Existing Candidate Tag" matches this concept.
-   - If a candidate matches, PREFER the candidate tag.
-   - If NO candidate fits, create a NEW concise tag.
-   - Do not make the tag very vague or very specific, make sure it can be reused elsewhere
-3. Keep tags lowercase, hyphen-separated, without special characters or '#' (e.g., "local-models", "machine-learning").
+### Tagging Rules:
+1. Max Limit: Output **1 or 2 tags maximum**. Never output 3 or more.
+2. High-Level Granularity: Use broad, main-topic categories (e.g., "nextjs", "typescript", "devops", "networking").
+3. Avoid Niche Tags: DO NOT combine terms or create specific sub-topic tags like "nextjs-configuration", "typescript-linting", or "build-process". Ask yourself: "Will this tag apply to at least 20 other notes?"
+4. Reuse Candidates: Always prefer an "Existing Candidate Tag" if it matches the general domain.
+5. Formatting: Keep tags lowercase, single words or simple compound words separated by hyphens, without special characters or '#'.
 
 ### Example 1:
-Note: "Tested using Ollama for automatic note classification. Found that local models need clear taxonomy guidelines."
-Candidates: ["zettelkasten", "networking"]
+Note: "Add ignoreBuildErrors: true to next.config.ts to ignore TS errors on build."
+Candidates: ["nextjs", "web-development"]
 Output: {
-  "rationale": "Topic covers Ollama/local models and categorization. 'zettelkasten' doesn't fit directly. Needs 'local-models' and 'note-taking'.",
-  "tags": ["local-models", "note-taking", "artificial-intelligence"]
+  "rationale": "Note is about Next.js and TypeScript settings. 'nextjs' is a candidate tag, and 'typescript' is a broad topic.",
+  "tags": ["nextjs", "typescript"]
 }
 
 ### Example 2:
-Note: "Guest isolation on routers prevents devices from discovering each other across local networks."
-Candidates: ["networking", "hardware", "ai"]
+Note: "Tested using Ollama for automatic note classification. Found local models need guidelines."
+Candidates: ["zettelkasten", "ai"]
 Output: {
-  "rationale": "Topic covers router settings and local networking. Candidate 'networking' matches perfectly.",
-  "tags": ["networking", "hardware", "security"]
+  "rationale": "Note touches local LLMs and note management. 'ai' is a candidate tag.",
+  "tags": ["ai", "zettelkasten"]
 }
 `;
 
 export function getTagsAgent() {
+  const { model, responseFormat } = modelManager.getModelAndResponseFormat(0.1, NoteTags, "qwen3:1.7b")
+
   return createAgent({
-    model: modelManager.getModel(0.1, "qwen3:1.7b"),
+    model: model,
     name: "Tags Agent",
     description: "An agent that assigns tags to a note.",
     systemPrompt: systemPrompt,

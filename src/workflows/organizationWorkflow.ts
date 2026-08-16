@@ -37,7 +37,6 @@ export default class OrganizationWorkflow {
         noteType: "rough-note"
       }
     }
-    console.log("invoking agent...")
 
     // Check what type of note it is if the previous conditions weren't met
     const notesClassifierAgentResult = await getNoteTypeClassifierAgent().invoke({
@@ -47,8 +46,7 @@ export default class OrganizationWorkflow {
     })
 
     try {
-      const parsedString = JSON.parse(notesClassifierAgentResult.messages[1]?.content as string)
-      return parsedString
+      return notesClassifierAgentResult.structuredResponse.noteType
     } catch {
       new Notice("Error parsing classifier agent result")
       return Promise.resolve()
@@ -71,9 +69,11 @@ export default class OrganizationWorkflow {
       ]
     })
 
+    console.log(noteTitleAgentResult)
+
     try {
       // Sanitize the title to get rid of illegal characters
-      const title = this.sanitizeTitle(JSON.parse(noteTitleAgentResult.messages[1]?.content as string).title)
+      const title = this.sanitizeTitle(noteTitleAgentResult.structuredResponse.title)
       return title;
     } catch {
       new Notice("Error generating title")
@@ -116,10 +116,17 @@ export default class OrganizationWorkflow {
 
     // Ensure the target path ends properly and includes the filename
     const newPath = `${folderName}/${this.file.name}`
+    const oldPath = this.file.path;
 
     try {
+      console.log(`Moving file from ${oldPath} -> ${newPath}`);
       // app.fileManager.renameFile handles both renaming and moving
       await this.app.fileManager.renameFile(this.file, newPath);
+
+      const movedFile = this.app.vault.getAbstractFileByPath(newPath);
+      if (movedFile instanceof TFile) {
+        this.file = movedFile;
+      }
     } catch (error) {
       console.error("Failed to move file:", error);
       new Notice("Error moving file to folder");
@@ -235,27 +242,27 @@ export default class OrganizationWorkflow {
       messages: [
         {
           role: "human",
-          content: `Analyze the following note content and assign 2 to 4 tags.
+          content: `Analyze the following note content and assign **1 to 2 broad tags maximum**.
 
 ### Note Content:
 """
 ${this.noteContent}
 """
 
-### Existing Candidate Tags (from related notes):
+### Existing Candidate Tags:
 ${candidateListFormatted || "None"}
 
-### Instructions:
-1. Identify the primary subject matter and domain of the note.
-2. Match concepts against the Candidate Tags first.
-3. If a candidate tag fits a core topic, use it. Create new tags only when candidate tags do not cover a key topic.`
+### Strict Guidelines:
+1. Output at most 2 tags.
+2. Keep tags broad and non-specific so they can group dozens of notes together.
+3. Prefer candidate tags first before creating new ones.`
         }
       ]
     });
 
+    console.log(tagsAgentResult)
     try {
-      const tags = JSON.parse(tagsAgentResult.messages[1]?.content as string).tags
-      return tags;
+      return tagsAgentResult.structuredResponse.tags;
     } catch {
       new Notice("Could not extract the tags")
       return []
@@ -305,6 +312,16 @@ ${candidateListFormatted || "None"}
   }
 
   async run() {
+    // GENERATE TITLE & RENAME
+    new Notice("Generating title...");
+    const newTitle = await this.getTitle();
+    if (!newTitle) {
+      new Notice("Error generating title, aborting...");
+      return;
+    }
+    await this.updateFileTitle(newTitle);
+    new Notice("Updated note title");
+
     // GET THE MOST RELEVANT NOTES TO THE CURRENT ONE
     const queryResult = await this.vectorDB.queryNotes(this.noteContent)
     if (queryResult.length > 0)
@@ -328,17 +345,6 @@ ${candidateListFormatted || "None"}
 
     new Notice("Connected to other notes")
 
-    new Notice("Generating title...")
-
-    // GENERATE THE NOTE TITLE
-    const newTitle = await this.getTitle()
-    if (newTitle === undefined) {
-      new Notice("Error generating the title for the document")
-      return
-    }
-    await this.updateFileTitle(newTitle)
-    new Notice("Generated the title")
-
     new Notice("Classifying the note...")
 
     // GET THE NOTE TYPE
@@ -347,7 +353,8 @@ ${candidateListFormatted || "None"}
       new Notice("Exiting run dude to classifier agent error")
       return
     }
-    await this.moveFileToFolder(noteType.noteType)
+    // @ts-ignore
+    await this.moveFileToFolder(noteType.noteType === undefined ? noteType : noteType.noteType)
     new Notice("Classified the note")
 
     return this.file

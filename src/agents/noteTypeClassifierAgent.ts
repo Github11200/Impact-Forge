@@ -22,11 +22,13 @@ Output: {"noteType": "polished-note"}
 Return only valid JSON matching the requested format.`
 
 export function getNoteTypeClassifierAgent() {
+  const { model, responseFormat } = modelManager.getModelAndResponseFormat(0.1, NoteType, "qwen3:1.7b")
+
   return createAgent({
-    model: modelManager.getModel(0.1, "qwen3:1.7b"),
+    model: model,
     name: "Atomic Notes Agent",
     description: "An agent that takes a note and splits it into atomic notes.",
     systemPrompt: systemPrompt,
-    responseFormat: providerStrategy(NoteType)
+    responseFormat: responseFormat
   })
 }

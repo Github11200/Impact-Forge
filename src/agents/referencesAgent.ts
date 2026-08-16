@@ -14,11 +14,13 @@ Rules:
 
 
 export function getReferencesAgent() {
+  const { model, responseFormat } = modelManager.getModelAndResponseFormat(0.1, NoteReferences, "qwen3:4b")
+
   return createAgent({
-    model: modelManager.getModel(0.1, "qwen3:4b"),
+    model: model,
     name: "References Agent",
     description: "An agent that decides what other notes to interlink to.",
     systemPrompt: systemPrompt,
-    responseFormat: providerStrategy(NoteReferences)
+    responseFormat: responseFormat
   })
 }

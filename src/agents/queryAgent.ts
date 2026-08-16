@@ -18,11 +18,13 @@ Ensure your response strictly fills the JSON schema fields:
 
 
 export function getQueryAgent() {
+  const { model, responseFormat } = modelManager.getModelAndResponseFormat(0.1, UserQueryResultSchema, "qwen3:4b")
+
   return createAgent({
-    model: modelManager.getModel(0.1, "qwen3:4b"),
+    model: model,
     name: "Query Agent",
     description: "An agent that answers queries about the notes database.",
     systemPrompt: systemPrompt,
-    responseFormat: providerStrategy(UserQueryResultSchema)
+    responseFormat: responseFormat
   })
 }

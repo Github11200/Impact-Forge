@@ -1,6 +1,7 @@
 import { ChatGoogleGenerativeAI } from "@langchain/google-genai";
-import type { ModelConfig } from "./types";
 import { ChatOllama } from "@langchain/ollama";
+import { providerStrategy, toolStrategy, type ResponseFormat } from "langchain";
+import type { ZodObject } from "zod";
 
 export class ModelManager {
   private geminiApiKey: string | null = null
@@ -9,19 +10,29 @@ export class ModelManager {
     this.geminiApiKey = newKey
   }
 
-  public getModel(temperature: number, ollamaModelName?: string): ChatGoogleGenerativeAI | ChatOllama {
+  public getModelAndResponseFormat(temperature: number, type: ZodObject, ollamaModelName?: string): { model: ChatGoogleGenerativeAI | ChatOllama, responseFormat: ResponseFormat } {
     if (this.geminiApiKey) {
-      return new ChatGoogleGenerativeAI({
-        apiKey: this.geminiApiKey,
-        model: "gemini-2.5-flash",
-        temperature: temperature,
-      });
+      console.log("using gemini :)")
+      return {
+        model: new ChatGoogleGenerativeAI({
+          apiKey: this.geminiApiKey,
+          model: "gemini-2.5-flash",
+          temperature: temperature,
+          maxRetries: 2
+        }),
+        responseFormat: toolStrategy(type)
+      }
     }
 
-    return new ChatOllama({
-      model: ollamaModelName,
-      temperature: temperature,
-    });
+    return {
+      model: new ChatOllama({
+        model: ollamaModelName,
+        temperature: temperature,
+        maxRetries: 2,
+        format: type.toJSONSchema()
+      }),
+      responseFormat: providerStrategy(type)
+    }
   }
 }
 

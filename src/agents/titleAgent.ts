@@ -23,11 +23,13 @@ Output: {"title": "Three Distinct Note Types - Fleeting Literature Permanent"}
 Return only valid JSON matching the requested format.`;
 
 export function getTitleAgent() {
+  const { model, responseFormat } = modelManager.getModelAndResponseFormat(0.1, NoteTitle, "qwen3:1.7b")
+
   return createAgent({
-    model: modelManager.getModel(0.2, "qwen3:1.7b"),
+    model: model,
     name: "Note Title Agent",
     description: "An agent that generates a concise, declarative Zettelkasten title for a given note.",
     systemPrompt: systemPrompt,
-    responseFormat: providerStrategy(NoteTitle),
+    responseFormat: responseFormat,
   })
 }
