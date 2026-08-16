@@ -27,7 +27,7 @@ Output: {"tags": ["networking", "hardware"]}
 
 export const tagsAgent = createAgent({
   model: new ChatOllama({
-    model: "qwen3:4b",
+    model: "qwen3:1.7b",
     temperature: 0.1,
     format: NoteTags.toJSONSchema()
   }),

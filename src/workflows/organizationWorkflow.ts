@@ -302,22 +302,28 @@ Instructions:
   async run() {
     // GET THE MOST RELEVANT NOTES TO THE CURRENT ONE
     const queryResult = await this.vectorDB.queryNotes(this.noteContent)
-    new Notice("Found relevant notes")
+    if (queryResult.length > 0)
+      new Notice("Found relevant notes")
+    else
+      new Notice("No relevant notes found")
 
-    console.log(queryResult)
+    new Notice("Generating tag names...")
 
     // DECIDE THE TAG NAME BASED ON THE RELEVANT NOTES
     const tagNames = await this.getTagNames(queryResult)
-    console.log(tagNames)
     await this.updateNoteTags(tagNames)
 
     new Notice("Decided tag names")
+
+    new Notice("Deciding notes to connect to...")
 
     // DECIDE WHAT OTHER NOTES TO CONNECT TO
     const references = await this.getReferences(queryResult)
     await this.updateNoteReferences(references)
 
     new Notice("Connected to other notes")
+
+    new Notice("Generating title...")
 
     // GENERATE THE NOTE TITLE
     const newTitle = await this.getTitle()
@@ -327,6 +333,8 @@ Instructions:
     }
     await this.updateFileTitle(newTitle)
     new Notice("Generated the title")
+
+    new Notice("Classifying the note...")
 
     // GET THE NOTE TYPE
     const noteType = await this.classifyNote()

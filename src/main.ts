@@ -109,8 +109,6 @@ export default class NotesOrganizerPlugin extends Plugin {
     // If the links in a file are changed then update the graph
     this.app.metadataCache.on("changed", (file, _, cache) => {
       // If the file that was changed was a file for a tag then ignore it
-      if (file.parent?.name === "4 - Tags")
-        return
       this.graphDB.updateGraph(file, cache)
       this.saveGraphDatabase()
     })
@@ -188,6 +186,7 @@ export default class NotesOrganizerPlugin extends Plugin {
   queryButtonCallback = async (query: string) => {
     const queryWorkflow = new QueryWorkflow(this.app, this.vectorDB, this.graphDB)
 
+    console.log(this.graphDB.graph.nodes());
     queryWorkflow.run(query)
   }
 
@@ -216,19 +215,6 @@ export default class NotesOrganizerPlugin extends Plugin {
     this.isWorkflowRunning = false
   }
 }
-
-class SampleModal extends Modal {
-  onOpen() {
-    const { contentEl } = this;
-    contentEl.setText('Woah!');
-  }
-
-  onClose() {
-    const { contentEl } = this;
-    contentEl.empty();
-  }
-}
-
 
 export const VIEW_TYPE_EXAMPLE = 'example-view';
 

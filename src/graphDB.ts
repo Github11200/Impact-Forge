@@ -1,5 +1,5 @@
 import Graph from "graphology"
-import { TFile, type App, type CachedMetadata } from "obsidian"
+import { Notice, TFile, type App, type CachedMetadata } from "obsidian"
 
 export default class NotesGraph {
   graph: Graph
@@ -10,6 +10,12 @@ export default class NotesGraph {
     this.graph = new Graph({ multi: false })
   }
 
+  printNodes() {
+    this.graph.forEachNode((node) => {
+      console.log(node);
+    });
+  }
+
   addNote(file: TFile) {
     this.graph.addNode(file.path, {
       path: file.path,
@@ -18,6 +24,11 @@ export default class NotesGraph {
   }
 
   connectNotes(file1Path: string, file2Path: string) {
+    if (!this.graph.hasNode(file1Path) || !this.graph.hasNode(file2Path)) {
+      new Notice("Could not connect nodes, one does not exist")
+      return;
+    }
+
     if (!this.graph.hasEdge(file1Path, file2Path))
       this.graph.addEdge(file1Path, file2Path)
   }
@@ -42,7 +53,11 @@ export default class NotesGraph {
   }
 
   updateGraph(file: TFile, cache: CachedMetadata) {
-    if (!cache.links) return;
+    // If the current node doesn't exist then add it
+    if (!this.graph.hasNode(file.path))
+      this.addNote(file)
+
+    if (!cache.links || file.parent?.name === "4 - Tags") return;
 
     // Resolve raw string links to target TFiles
     const resolvedLinks: string[] = [];
@@ -59,10 +74,6 @@ export default class NotesGraph {
         resolvedLinks.push(targetFile.path);
     }
 
-    // If the current node doesn't exist then add it
-    if (!this.graph.hasNode(file))
-      this.addNote(file)
-
     for (const link of resolvedLinks) {
       const secondFile = this.app.vault.getAbstractFileByPath(link)
       if (secondFile !== null && secondFile instanceof TFile)
@@ -75,7 +86,8 @@ export default class NotesGraph {
     // Add all Markdown files as nodes
     const files = this.app.vault.getMarkdownFiles();
     for (const file of files)
-      this.addNote(file);
+      if (file.parent && file.parent.name !== "" && file.parent.name !== "5 - Templates")
+        this.addNote(file);
 
     // Get all the resolved links
     const resolvedLinks = this.app.metadataCache.resolvedLinks;
