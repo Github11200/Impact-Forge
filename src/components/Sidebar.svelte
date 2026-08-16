@@ -6,20 +6,25 @@
 		app,
 		organizeButtonCallback,
 		queryButtonCallback,
+		newNoteButtonCallback,
 		printGraphNodes,
 		printMemoryStores,
 		value = $bindable(''),
 	} = $props();
 
 	let queryResult = $state('');
+	// svelte-ignore non_reactive_update
 	let resultContainer: HTMLElement;
 	let component = new Component();
+	let isLoading = $state(false);
 
 	async function handleQuery() {
-		queryResult = 'Processing...';
+		isLoading = true;
+		queryResult = '';
 
 		const response = await queryButtonCallback(value);
 		queryResult = response;
+		isLoading = false;
 
 		await tick();
 
@@ -38,7 +43,6 @@
 
 	function handleClear() {
 		queryResult = '';
-		resultContainer.empty();
 	}
 
 	function handleLinkClick(event: MouseEvent) {
@@ -55,7 +59,8 @@
 </script>
 
 <div id="container">
-	<button onclick={organizeButtonCallback}>Organize</button>
+	<button onclick={newNoteButtonCallback}>Create New Note</button>
+	<button onclick={organizeButtonCallback}>Organize Note</button>
 	<button onclick={printGraphNodes}>Print Graph Nodes</button>
 	<button onclick={printMemoryStores}>Print Memory Stores</button>
 
@@ -79,8 +84,13 @@
 		>
 	</label>
 
-	{#if queryResult !== ''}
+	{#if isLoading}
+		<p>Loading...</p>
+		<button>Clear</button>
+	{:else if queryResult !== ''}
 		<div>
+			<!-- svelte-ignore a11y_click_events_have_key_events -->
+			<!-- svelte-ignore a11y_no_static_element_interactions -->
 			<div
 				bind:this={resultContainer}
 				onclick={handleLinkClick}

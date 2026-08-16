@@ -31,6 +31,7 @@ export default class NotesOrganizerPlugin extends Plugin {
   vectorDB = new VectorDB()
   graphDB = new NotesGraph(this.app)
   isWorkflowRunning: boolean = false
+  templatePath = "5 - Templates/Note.md"
 
   printGraphNodes = () => {
     this.graphDB.printNodes()
@@ -161,7 +162,12 @@ export default class NotesOrganizerPlugin extends Plugin {
     // UI Views and Ribbon Icons
     this.registerView(
       VIEW_TYPE_EXAMPLE,
-      (leaf) => new PluginView(leaf, this.organizeButtonCallback, this.queryButtonCallback, this.printGraphNodes, this.printMemoryStores, this.app)
+      (leaf) => new PluginView(leaf, this.organizeButtonCallback,
+        this.queryButtonCallback,
+        this.newNoteButtonCallback,
+        this.printGraphNodes,
+        this.printMemoryStores,
+        this.app)
     );
 
     this.addRibbonIcon('dice', 'Activate view', () => {
@@ -216,10 +222,37 @@ export default class NotesOrganizerPlugin extends Plugin {
     return activeFile
   }
 
+  newNoteButtonCallback = async () => {
+    const templateFile = this.app.vault.getAbstractFileByPath(this.templatePath)
+
+    if (!(templateFile instanceof TFile)) {
+      new Notice("No template file found")
+      return
+    }
+
+    // Read the content inside the template
+    let templateContent = await this.app.vault.cachedRead(templateFile);
+
+    // Add in the template variables
+    templateContent = templateContent.replace('{{date}}', new Date().toLocaleDateString('en-CA'));
+    templateContent = templateContent.replace('{{time}}', new Date().toLocaleTimeString('en-GB', {
+      hour: '2-digit',
+      minute: '2-digit'
+    }));
+
+    // Add that file in the root directory
+    const newFile = await this.app.vault.create("/New Note.md", templateContent);
+
+    // Open the newly created note in the active workspace tab
+    await this.app.workspace.getLeaf(false).openFile(newFile);
+
+    new Notice("New note successfully created")
+  }
+
   queryButtonCallback = async (query: string): Promise<string> => {
     const queryWorkflow = new QueryWorkflow(this.app, this.vectorDB, this.graphDB)
 
-    const queryResult = undefined
+    const queryResult = await queryWorkflow.run(query)
 
     if (queryResult === undefined) {
       new Notice("Could not get a query result")
@@ -261,6 +294,7 @@ export class PluginView extends ItemView {
   component: Record<string, any> | undefined;
   organizeButtonCallback;
   queryButtonCallback: (query: string) => Promise<string>;
+  newNoteButtonCallback;
   printGraphNodes;
   printMemoryStores;
   inputValue: string = ''
@@ -269,12 +303,14 @@ export class PluginView extends ItemView {
   constructor(leaf: WorkspaceLeaf,
     organizeButtonCallback: any,
     queryButtonCallback: (query: string) => Promise<string>,
+    newNoteButtonCallback: any,
     printGraphNodes: any,
     printMemoryStores: any,
     app: App) {
     super(leaf);
     this.organizeButtonCallback = organizeButtonCallback
     this.queryButtonCallback = queryButtonCallback
+    this.newNoteButtonCallback = newNoteButtonCallback
     this.printGraphNodes = printGraphNodes
     this.printMemoryStores = printMemoryStores
     this.app = app
@@ -295,6 +331,7 @@ export class PluginView extends ItemView {
         app: this.app,
         organizeButtonCallback: this.organizeButtonCallback,
         queryButtonCallback: this.queryButtonCallback,
+        newNoteButtonCallback: this.newNoteButtonCallback,
         printGraphNodes: this.printGraphNodes,
         printMemoryStores: this.printMemoryStores
       },
@@ -307,12 +344,3 @@ export class PluginView extends ItemView {
     }
   }
 }
-
-/*
-
-"Associative links, as defined in [[3 - Full Notes/Associative Links Outperform Hierarchical Ones.md]], are bidirectional bridges created by Markdown WikiLinks (i.e., `[[Note Title]]`). These links connect atomic ideas to form an associative network, as opposed to hierarchical structures like standard URLs or folder paths. Unlike hierarchical approaches, associative links allow recurring link clusters to reveal emerging themes organically without requiring upfront folder organization."
-
-References:
-"3 - Full Notes/Associative Links Outperform Hierarchical Ones.md"
-
-*/
