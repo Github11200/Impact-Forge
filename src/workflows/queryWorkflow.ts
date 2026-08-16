@@ -2,7 +2,7 @@ import { Notice, TFile, type App } from "obsidian";
 import type VectorDB from "../vectorDB";
 import type NotesGraph from "../graphDB";
 import type { QueryResult } from "../types";
-import { queryAgent } from "../agents/queryAgent";
+import { getQueryAgent } from "../agents/queryAgent";
 
 export default class QueryWorkflow {
   vectorDB: VectorDB
@@ -75,7 +75,7 @@ If the context does not contain enough information to answer, state clearly that
     const prompt = await this.createPrompt(notes, query)
 
     // 5. Send to LLM
-    const tagsAgentResult = await queryAgent.invoke({
+    const tagsAgentResult = await getQueryAgent().invoke({
       messages: [
         {
           role: "human",

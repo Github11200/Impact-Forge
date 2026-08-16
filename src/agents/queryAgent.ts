@@ -17,10 +17,12 @@ Ensure your response strictly fills the JSON schema fields:
 - List used notes in the 'references' field.`;
 
 
-export const queryAgent = createAgent({
-  model: modelManager.getModel(0.1, "qwen3:4b"),
-  name: "Query Agent",
-  description: "An agent that answers queries about the notes database.",
-  systemPrompt: systemPrompt,
-  responseFormat: providerStrategy(UserQueryResultSchema)
-});
+export function getQueryAgent() {
+  return createAgent({
+    model: modelManager.getModel(0.1, "qwen3:4b"),
+    name: "Query Agent",
+    description: "An agent that answers queries about the notes database.",
+    systemPrompt: systemPrompt,
+    responseFormat: providerStrategy(UserQueryResultSchema)
+  })
+}

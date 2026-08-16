@@ -13,10 +13,12 @@ Rules:
 4. Output MUST strictly match the required JSON schema containing an array of reference note titles.`;
 
 
-export const referencesAgent = createAgent({
-  model: modelManager.getModel(0.1, "qwen3:4b"),
-  name: "References Agent",
-  description: "An agent that decides what other notes to interlink to.",
-  systemPrompt: systemPrompt,
-  responseFormat: providerStrategy(NoteReferences)
-});
+export function getReferencesAgent() {
+  return createAgent({
+    model: modelManager.getModel(0.1, "qwen3:4b"),
+    name: "References Agent",
+    description: "An agent that decides what other notes to interlink to.",
+    systemPrompt: systemPrompt,
+    responseFormat: providerStrategy(NoteReferences)
+  })
+}

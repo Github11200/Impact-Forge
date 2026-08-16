@@ -32,10 +32,12 @@ Output: {
 }
 `;
 
-export const tagsAgent = createAgent({
-  model: modelManager.getModel(0.1, "qwen3:1.7b"),
-  name: "Tags Agent",
-  description: "An agent that assigns tags to a note.",
-  systemPrompt: systemPrompt,
-  responseFormat: providerStrategy(NoteTags)
-})
+export function getTagsAgent() {
+  return createAgent({
+    model: modelManager.getModel(0.1, "qwen3:1.7b"),
+    name: "Tags Agent",
+    description: "An agent that assigns tags to a note.",
+    systemPrompt: systemPrompt,
+    responseFormat: providerStrategy(NoteTags)
+  })
+}

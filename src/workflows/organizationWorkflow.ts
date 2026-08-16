@@ -1,11 +1,11 @@
 import type z from "zod";
 import type { NoteType, NoteTypes, QueryResult } from "../types"
-import { noteTypeClassifierAgent } from "../agents/noteTypeClassifierAgent";
+import { getNoteTypeClassifierAgent } from "../agents/noteTypeClassifierAgent";
 import { App, Notice, TFile } from "obsidian";
 import VectorDB from "../vectorDB";
-import { noteTitleAgent } from "../agents/titleAgent";
-import { tagsAgent } from "../agents/tagsAgents";
-import { referencesAgent } from "../agents/referencesAgent";
+import { getTitleAgent } from "../agents/titleAgent";
+import { getTagsAgent } from "../agents/tagsAgents";
+import { getReferencesAgent } from "../agents/referencesAgent";
 
 export default class OrganizationWorkflow {
   app: App
@@ -40,7 +40,7 @@ export default class OrganizationWorkflow {
     console.log("invoking agent...")
 
     // Check what type of note it is if the previous conditions weren't met
-    const notesClassifierAgentResult = await noteTypeClassifierAgent.invoke({
+    const notesClassifierAgentResult = await getNoteTypeClassifierAgent().invoke({
       messages: [
         { role: "human", content: this.noteContent },
       ],
@@ -65,7 +65,7 @@ export default class OrganizationWorkflow {
   }
 
   async getTitle(): Promise<string> {
-    const noteTitleAgentResult = await noteTitleAgent.invoke({
+    const noteTitleAgentResult = await getTitleAgent().invoke({
       messages: [
         { role: "human", content: this.noteContent }
       ]
@@ -231,7 +231,7 @@ export default class OrganizationWorkflow {
       ? [...candidateTags].map(tag => `- ${tag}`).join('\n')
       : "None";
 
-    const tagsAgentResult = await tagsAgent.invoke({
+    const tagsAgentResult = await getTagsAgent().invoke({
       messages: [
         {
           role: "human",
@@ -275,7 +275,7 @@ ${candidateListFormatted || "None"}
       return `### Title: "${title}"\nPreview: ${snippet}...`;
     }).join("\n\n");
 
-    const referencesAgentResult = await referencesAgent.invoke({
+    const referencesAgentResult = await getReferencesAgent().invoke({
       messages: [
         {
           role: "human", content: `Analyze the following target note and determine which candidate notes from the list should be linked as Zettelkasten references.
