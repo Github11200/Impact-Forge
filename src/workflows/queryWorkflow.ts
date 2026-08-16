@@ -3,6 +3,7 @@ import type VectorDB from "../services/vectorDB";
 import type NotesGraph from "../services/graphDB";
 import type { QueryResult } from "../types";
 import { getQueryAgent } from "../agents/queryAgent";
+import MarkdownContentMutator from "./markdownContentMutator";
 
 export default class QueryWorkflow {
   vectorDB: VectorDB
@@ -87,7 +88,7 @@ If the context does not contain enough information to answer, state clearly that
     let answer = tagsAgentResult.structuredResponse.answer
     const references = tagsAgentResult.structuredResponse.references
 
-    answer += "\n\nReferences:\n" + references.map(reference => `- [[${reference}]]`).join("\n");
+    answer += "\n\nReferences:\n" + MarkdownContentMutator.formatWikilinkList(references);
 
     return answer;
   }

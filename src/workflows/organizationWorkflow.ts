@@ -6,6 +6,7 @@ import VectorDB from "../services/vectorDB";
 import { getTitleAgent } from "../agents/titleAgent";
 import { getTagsAgent } from "../agents/tagsAgents";
 import { getReferencesAgent } from "../agents/referencesAgent";
+import MarkdownContentMutator from "./markdownContentMutator";
 
 export default class OrganizationWorkflow {
   app: App
@@ -133,26 +134,6 @@ export default class OrganizationWorkflow {
     }
   }
 
-  getTagNamesFromNotes(notes: QueryResult) {
-    // Store the tags in a set to avoid duplicates
-    const candidateTags = new Set<string>()
-
-    for (const note of notes) {
-      const filePath = note.metadata.path;
-      const file = this.app.vault.getAbstractFileByPath(filePath);
-
-      if (file instanceof TFile) {
-        // Pull internal links directly from Obsidian's internal cache
-        const cache = this.app.metadataCache.getFileCache(file);
-        const links = cache?.links || [];
-
-        links.forEach(link => candidateTags.add(link.link));
-      }
-    }
-
-    return candidateTags
-  }
-
   // Update the text file and add the backlinks in
   async updateNoteTags(tags: string[]) {
     const targetFolder = "4 - Tags"
@@ -174,25 +155,7 @@ export default class OrganizationWorkflow {
       }
     }
 
-    // Format the tag strings into Obsidian backlinks
-    // ["ai", "philosophy"] -> "[[ai]] [[philosophy]]"
-    const formattedTags = tags.map(tag => `[[${tag}]]`).join(" ");
-
-    // Matches "Tags:" along with any trailing spaces/tabs on that same line
-    const tagsHeaderRegex = /^Tags:[ \t]*/im;
-
-    let updatedContent: string;
-
-    if (tagsHeaderRegex.test(this.noteContent)) {
-      // Replaces just "Tags: " on that line with "Tags: [[tag1]] [[tag2]]"
-      updatedContent = this.noteContent.replace(
-        tagsHeaderRegex,
-        `Tags: ${formattedTags}`
-      );
-    } else {
-      // Fallback if "Tags:" heading doesn't exist
-      updatedContent = `Tags: ${formattedTags}\n\n${this.noteContent}`;
-    }
+    const updatedContent = MarkdownContentMutator.applyTags(this.noteContent, tags);
 
     try {
       await this.app.vault.modify(this.file, updatedContent);
@@ -204,23 +167,7 @@ export default class OrganizationWorkflow {
   }
 
   async updateNoteReferences(references: string[]) {
-    const formattedReferences = references.map(ref => `- [[${ref}]]`).join("\n");
-
-    // Matches "# References" heading along with anything below that line (to preserve that content)
-    const referencesHeadingRegex = /^# References[ \t]*/im;
-
-    let updatedContent: string;
-
-    if (referencesHeadingRegex.test(this.noteContent)) {
-      // Inserts the backlinks on a new line directly below "# References"
-      updatedContent = this.noteContent.replace(
-        referencesHeadingRegex,
-        `# References\n${formattedReferences}`
-      );
-    } else {
-      // Fallback: If "# References" heading isn't present, append it to the end of the note
-      updatedContent = `${this.noteContent.trimEnd()}\n\n# References\n${formattedReferences}`;
-    }
+    const updatedContent = MarkdownContentMutator.applyReferences(this.noteContent, references);
 
     try {
       await this.app.vault.modify(this.file, updatedContent);
@@ -233,7 +180,19 @@ export default class OrganizationWorkflow {
 
   // As the an agent to generate tag names for this note
   async getTagNames(relevantNotes: QueryResult): Promise<string[]> {
-    const candidateTags = this.getTagNamesFromNotes(relevantNotes);
+    const candidateTags = MarkdownContentMutator.collectCandidateTags(
+      relevantNotes,
+      (filePath: string) => {
+        const file = this.app.vault.getAbstractFileByPath(filePath);
+        if (!(file instanceof TFile)) {
+          return [];
+        }
+
+        const cache = this.app.metadataCache.getFileCache(file);
+        const links = cache?.links || [];
+        return links.map((link) => link.link);
+      }
+    );
     const candidateListFormatted = [...candidateTags].length > 0
       ? [...candidateTags].map(tag => `- ${tag}`).join('\n')
       : "None";
