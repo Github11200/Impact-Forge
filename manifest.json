@@ -1,8 +1,8 @@
 {
   "id": "impact-forge",
   "name": "Notes Organizer",
-  "version": "1.0.0",
-  "minAppVersion": "1.0.0",
+  "version": "1.0.1",
+  "minAppVersion": "1.0.1",
   "description": "Automatically link and structure your notes into a second brain.",
   "author": "Jinay Patel",
   "authorUrl": "https://github.com/Github11200",
